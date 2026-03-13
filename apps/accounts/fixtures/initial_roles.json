@@ -1,0 +1,79 @@
+[
+  {
+    "model": "accounts.role",
+    "pk": "00000000-0000-0000-0000-000000000001",
+    "fields": {
+      "name": "SUPERADMIN",
+      "description": "Full platform access. All operations permitted.",
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "accounts.role",
+    "pk": "00000000-0000-0000-0000-000000000002",
+    "fields": {
+      "name": "ADMIN",
+      "description": "Facility administrator. Manages users, configuration, and reports.",
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "accounts.role",
+    "pk": "00000000-0000-0000-0000-000000000003",
+    "fields": {
+      "name": "CLINICIAN",
+      "description": "Doctor or nurse. Full access to patient records and clinical data.",
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "accounts.role",
+    "pk": "00000000-0000-0000-0000-000000000004",
+    "fields": {
+      "name": "LAB_MANAGER",
+      "description": "Laboratory supervisor. Manages catalog, QC, and validates results.",
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "accounts.role",
+    "pk": "00000000-0000-0000-0000-000000000005",
+    "fields": {
+      "name": "LAB_ANALYST",
+      "description": "Bench analyst. Enters and views results. Read-only catalog access.",
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "accounts.role",
+    "pk": "00000000-0000-0000-0000-000000000006",
+    "fields": {
+      "name": "FRONT_DESK",
+      "description": "Receptionist or secretary. Registers patients and creates orders.",
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "accounts.role",
+    "pk": "00000000-0000-0000-0000-000000000007",
+    "fields": {
+      "name": "AUDITOR",
+      "description": "Read-only access to audit logs and compliance reports.",
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

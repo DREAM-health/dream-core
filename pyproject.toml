@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "dream-core"
+version = "1.0.0"
+description = "dream-core - Open Source Healthcare Platform Kernel"
+requires-python = ">=3.12"
+dependencies = [
+    # Web framework
+    "django>=5.0,<6.0",
+    "djangorestframework>=3.15,<4.0",
+    "django-filter>=24.0",
+    "drf-spectacular>=0.27",          # OpenAPI schema generation
+
+    # Auth & RBAC
+    "djangorestframework-simplejwt>=5.3",
+    "django-guardian>=2.4",           # Object-level permissions
+
+    # Audit
+    "django-auditlog>=3.0",
+
+    # FHIR
+    "fhir.resources>=7.1",
+    "pydantic>=2.7",                  # fhir.resources v7 uses pydantic v2
+
+    # Database
+    "psycopg2-binary>=2.9",
+
+    # Utilities
+    "python-decouple>=3.8",           # env var management
+    "django-cors-headers>=4.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Type checking
+    "mypy>=1.10",
+    "django-stubs>=5.0",
+    "djangorestframework-stubs>=3.15",
+    "types-python-dateutil",
+
+    # Testing
+    "pytest>=8.2",
+    "pytest-django>=4.8",
+    "pytest-cov>=5.0",
+    "factory-boy>=3.3",
+    "Faker>=25.0",
+
+    # Linting
+    "ruff>=0.4",
+]
+
+# ── mypy ─────────────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+ignore_missing_imports = false
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+
+[[tool.mypy.overrides]]
+module = [
+    "auditlog.*",
+    "guardian.*",
+    "drf_spectacular.*",
+    "factory.*",
+    "fhir.*",
+]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.development"
+
+# ── ruff ─────────────────────────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "ANN", "S", "B", "A"]
+ignore = ["ANN101", "ANN102"]
+
+# ── pytest ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.testing"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=apps --cov-report=term-missing --cov-fail-under=80"
