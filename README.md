@@ -14,7 +14,6 @@ dream-core/
 │   │   ├── development.py      # Local dev (SQLite)
 │   │   ├── testing.py          # pytest (in-memory SQLite)
 │   │   └── production.py       # Production (PostgreSQL, strict security)
-│   ├── celery.py               # Celery app
 │   └── urls.py                 # Root URL router
 │
 ├── apps/
@@ -40,12 +39,9 @@ dream-core/
 │   │   ├── views.py            # Includes result interpretation engine
 │   │   └── management/commands/seed_catalog.py
 │   │
-│   ├── audit/                  # Audit log query API
-│   │   └── views.py            # Read-only over django-auditlog LogEntry
-│   │
-│   ├── workflows/              # Phase 2 — stub
-│   └── notifications/          # Phase 2 — stub
-│
+│   └── audit/                  # Audit log query API
+│       └── views.py            # Read-only over django-auditlog LogEntry
+│  
 └── tests/
     ├── conftest.py             # Shared fixtures + API clients per role
     ├── accounts/               # Auth + RBAC tests
