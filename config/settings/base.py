@@ -39,8 +39,8 @@ LOCAL_APPS: list[str] = [
     "apps.patients",
     "apps.catalog",
     "apps.audit",
-    "apps.workflows",
-    "apps.notifications",
+    # "apps.workflows",
+    # "apps.notifications",
 ]
 
 INSTALLED_APPS: list[str] = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -150,7 +150,7 @@ SIMPLE_JWT: dict[str, object] = {
 
 # ── Auditlog ──────────────────────────────────────────────────────────────────
 AUDITLOG_INCLUDE_ALL_MODELS: bool = False   # We register explicitly per model
-AUDITLOG_EXCLUDE_TRACKING_FIELDS: tuple[str, ...] = ("updated_at",)
+# AUDITLOG_EXCLUDE_TRACKING_FIELDS: tuple[str, ...] = ("updated_at",)
 
 # ── drf-spectacular (OpenAPI) ─────────────────────────────────────────────────
 SPECTACULAR_SETTINGS: dict[str, object] = {
