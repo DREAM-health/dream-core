@@ -42,10 +42,10 @@ class TestDefinitionFactory(DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Test {n}")
     abbreviation = factory.Sequence(lambda n: f"T{n}")
     loinc_code = factory.Sequence(lambda n: f"{n:05d}-0")
-    result_type = TestDefinition.ResultType.NUMERIC
+    result_type = TestDefinition.ResultTypeChoices.NUMERIC
     unit = factory.SubFactory(UnitFactory)
     decimal_places = 2
-    specimen_type = TestDefinition.SpecimenType.SERUM
+    specimen_type = TestDefinition.SpecimenTypeChoices.SERUM
     turnaround_hours = 24
     is_active = True
     requires_validation = True
@@ -59,7 +59,7 @@ class ReferenceRangeFactory(DjangoModelFactory):
         model = ReferenceRange
 
     test = factory.SubFactory(TestDefinitionFactory)
-    sex = ReferenceRange.SexChoices.ANY
+    sex = ReferenceRange.GenderChoices.ANY
     label = "Adult"
     low_normal = Decimal("10.00")
     high_normal = Decimal("50.00")

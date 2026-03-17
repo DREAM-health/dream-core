@@ -160,6 +160,12 @@ class TestDefinition(SoftDeleteModel):
         CODED = "coded", "Coded (from value set)"
         SEMI_QUANTITATIVE = "semi_quant", "Semi-quantitative"
 
+    class SpecimenTypeChoices(models.TextChoices):
+        HAEMOGLOBIN = "haemoglobin", "Haemoglobin"
+        SERUM = "serum", "Serum"
+        TSH = "tsh", "Thyroid-Stimulating Hormone"
+        BLOOD = "blood", "Blood culture"
+
     class TATUnitChoices(models.TextChoices):
         MINUTES = "min", "Minutes"
         HOURS = "hours", "Hours"
