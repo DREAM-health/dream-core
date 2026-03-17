@@ -2,7 +2,7 @@
 # dream-core — Development, testing, and type-checking dependencies
 # ==============================================================================
 # Install on top of requirements.txt:
-#   pip install -r requirements.txt -r requirements-dev.txt
+#   pip install -r requirements-dev.txt
 # ==============================================================================
  
 -r requirements.txt             # include all production deps
