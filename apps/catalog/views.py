@@ -95,8 +95,8 @@ class UnitDetailView(generics.RetrieveUpdateDestroyAPIView[Unit]):
 )
 class TestPanelListCreateView(generics.ListCreateAPIView[TestPanel]):
     search_fields = ["code", "name", "category", "loinc_code"]
-    filterset_fields = ["category", "is_active", "specimen_type", "fasting_required"]
-    ordering_fields = ["sort_order", "name", "category"]
+    filterset_fields = ["category", "is_active",]
+    ordering_fields = ["name", "category"]
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
@@ -116,7 +116,9 @@ class TestPanelListCreateView(generics.ListCreateAPIView[TestPanel]):
         return TestPanelListSerializer
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        print(request.data)
         serializer = TestPanelWriteSerializer(data=request.data, context={"request": request})
+        print(serializer)
         serializer.is_valid(raise_exception=True)
         panel: TestPanel = serializer.save()
         output = TestPanelDetailSerializer(

@@ -4,8 +4,8 @@ apps/patients/models.py
 Patient Registry — Master Patient Index.
 
 Design:
-- Patient is the canonical person record, shared across MedClinic and MedLIMS.
-- External identifiers (CPF, passport, insurance card, etc.) are stored in
+- Patient is the canonical person record, shared across dream-core and other derivative softwares.
+- External identifiers (registry number, fiscal code, passport number, insurance card, etc.) are stored in
   PatientIdentifier (one-to-many) to support multiple identifier systems.
 - ContactPoint stores phone/email contacts.
 - Address is stored inline (JSON field) to allow flexible FHIR address representation.
@@ -26,6 +26,7 @@ class Patient(SoftDeleteModel):
     """
 
     class GenderChoices(models.TextChoices):
+        # see more: https://www.hl7.org/fhir/patient-definitions.html#Patient.gender
         MALE = "male", "Male"
         FEMALE = "female", "Female"
         OTHER = "other", "Other"
@@ -104,8 +105,8 @@ class PatientIdentifier(models.Model):
 
     Examples:
       system="urn:oid:2.16.840.1.113883.2.4.6.3" value="123456789" (BSN)
-      system="http://hl7.org/fhir/sid/us-ssn"    value="XXX-XX-XXXX"
-      system="https://dream-core.local/cpf"      value="12345678901"
+      system="https://fhir.hl7.org/fhir/datatypes-examples.html#:~:text=A-,US%20SSN,-%3A"    value="XXX-XX-XXXX"
+      system="https://xyz/tax-code"      value="12345678901"
     """
 
     class UseChoices(models.TextChoices):

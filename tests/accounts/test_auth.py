@@ -22,6 +22,9 @@ pytestmark = pytest.mark.django_db
 class TestLogin:
     URL = "/api/v1/auth/login/"
 
+    def test_sample(self) -> None:
+        assert True == True
+
     def test_login_success_returns_tokens(self, anon_client: APIClient) -> None:
         user = UserFactory(email="login@test.com")
         user.set_password("GoodPass123!")

@@ -163,10 +163,14 @@ class TestPanelListSerializer(serializers.ModelSerializer[TestPanel]):
     class Meta:
         model = TestPanel
         fields = [
-            "id", "code", "name", "category",
-            "turnaround_hours", "specimen_type",
-            "fasting_required", "price", "is_active",
-            "test_count",
+            "id",
+            "category",
+            "name",
+            "code",
+            "description",
+            "loinc_code",
+            "is_active",
+            "price",
         ]
         read_only_fields = fields
 
@@ -177,12 +181,14 @@ class TestPanelDetailSerializer(serializers.ModelSerializer[TestPanel]):
     class Meta:
         model = TestPanel
         fields = [
-            "id", "code", "name", "description", "category",
-            "loinc_code", "turnaround_hours",
-            "specimen_type", "container_type",
-            "fasting_required", "price",
-            "is_active", "sort_order",
-            "tests",
+            "id",
+            "category",
+            "name",
+            "code",
+            "description",
+            "loinc_code",
+            "is_active",
+            "price",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
@@ -192,11 +198,13 @@ class TestPanelWriteSerializer(serializers.ModelSerializer[TestPanel]):
     class Meta:
         model = TestPanel
         fields = [
-            "code", "name", "description", "category",
-            "loinc_code", "turnaround_hours",
-            "specimen_type", "container_type",
-            "fasting_required", "price",
-            "is_active", "sort_order",
+            "category",
+            "name",
+            "code",
+            "description",
+            "loinc_code",
+            "is_active",
+            "price",
         ]
 
 

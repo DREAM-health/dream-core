@@ -27,7 +27,7 @@ class IsSuperAdmin(BasePermission):
 
     message = "Superadmin access required."
 
-    def has_permission(self, request: Request, view: APIView) -> bool:
+    def has_permission(self, request: Request, _view: APIView) -> bool:
         user = request.user
         if not user or not user.is_authenticated:
             return False
@@ -40,7 +40,7 @@ class IsAdmin(BasePermission):
 
     message = "Admin access required."
 
-    def has_permission(self, request: Request, view: APIView) -> bool:
+    def has_permission(self, request: Request, _view: APIView) -> bool:
         user = request.user
         if not user or not user.is_authenticated:
             return False
@@ -53,7 +53,7 @@ class IsAuditor(BasePermission):
 
     message = "Auditor role required."
 
-    def has_permission(self, request: Request, view: APIView) -> bool:
+    def has_permission(self, request: Request, _view: APIView) -> bool:
         user = request.user
         if not user or not user.is_authenticated:
             return False
@@ -69,7 +69,7 @@ class IsAuditor(BasePermission):
 class ReadOnly(BasePermission):
     """Allow safe methods (GET, HEAD, OPTIONS) only."""
 
-    def has_permission(self, request: Request, view: APIView) -> bool:
+    def has_permission(self, request: Request, _view: APIView) -> bool:
         return request.method in ("GET", "HEAD", "OPTIONS")
 
 
@@ -85,7 +85,7 @@ def HasRole(role_name: str) -> Type[BasePermission]:
         _role_name = role_name
         message = f"Role '{role_name}' required."
 
-        def has_permission(self, request: Request, view: APIView) -> bool:
+        def has_permission(self, request: Request, _view: APIView) -> bool:
             user = request.user
             if not user or not user.is_authenticated:
                 return False
@@ -96,7 +96,7 @@ def HasRole(role_name: str) -> Type[BasePermission]:
 
     _HasRole.__name__ = f"HasRole_{role_name}"
     _HasRole.__qualname__ = f"HasRole_{role_name}"
-    return _HasRole
+    return _HasRole()
 
 
 def HasAnyRole(*role_names: str) -> Type[BasePermission]:
@@ -112,7 +112,7 @@ def HasAnyRole(*role_names: str) -> Type[BasePermission]:
         _role_names = role_names
         message = f"One of these roles required: {', '.join(role_names)}."
 
-        def has_permission(self, request: Request, view: APIView) -> bool:
+        def has_permission(self, request: Request, _view: APIView) -> bool:
             user = request.user
             if not user or not user.is_authenticated:
                 return False
@@ -123,4 +123,4 @@ def HasAnyRole(*role_names: str) -> Type[BasePermission]:
 
     _HasAnyRole.__name__ = f"HasAnyRole_{'_'.join(role_names)}"
     _HasAnyRole.__qualname__ = f"HasAnyRole_{'_'.join(role_names)}"
-    return _HasAnyRole
+    return _HasAnyRole()

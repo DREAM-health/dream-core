@@ -117,7 +117,7 @@ class UserListCreateView(generics.ListCreateAPIView[User]):
 
     permission_classes = [IsAuthenticated, IsAdmin]
     filterset_fields = ["is_active", "department"]
-    search_fields = ["email", "first_name", "last_name", "professional_id"]
+    search_fields = ["email", "password",  "first_name", "last_name", "professional_id"]
     ordering_fields = ["last_name", "created_at"]
 
     def get_queryset(self) -> Any:

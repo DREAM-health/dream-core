@@ -20,6 +20,7 @@ class RoleFactory(DjangoModelFactory):
 class UserFactory(DjangoModelFactory):
     class Meta:
         model = User
+        skip_postgeneration_save = True  # suppress deprecation warning
 
     email = factory.Sequence(lambda n: f"user{n}@dream_core.test")
     first_name = factory.Faker("first_name")

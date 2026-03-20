@@ -1,7 +1,7 @@
 """
 tests/conftest.py
 
-Shared pytest fixtures for the entire deram-core test suite.
+Shared pytest fixtures for the entire dream-core test suite.
 """
 import pytest
 from rest_framework.test import APIClient

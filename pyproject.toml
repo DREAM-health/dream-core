@@ -74,7 +74,7 @@ module = [
 ignore_missing_imports = true
 
 [tool.django-stubs]
-django_settings_module = "config.settings.development"
+DJANGO_SETTINGS_MODULE = "config.settings.development"
 
 # ── ruff ─────────────────────────────────────────────────────────────────────
 [tool.ruff]

@@ -36,7 +36,6 @@ services:
       DB_NAME: dream_core
       DB_USER: dream_core
       DB_PASSWORD: dream_core
-      REDIS_URL: redis://redis:6379/0
     volumes:
       - .:/app
     ports:

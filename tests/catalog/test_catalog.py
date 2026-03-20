@@ -17,8 +17,8 @@ from rest_framework.test import APIClient
 from apps.catalog.models import ReferenceRange, TestDefinition, TestPanel, Unit
 from tests.catalog.factories import (
     ReferenceRangeFactory,
-    TestDefinitionFactory,
-    TestPanelFactory,
+    LabTestDefinitionFactory,
+    LabTestPanelFactory,
     UnitFactory,
 )
 
@@ -31,11 +31,11 @@ TESTS_URL = "/api/v1/catalog/tests/"
 INTERPRET_URL = "/api/v1/catalog/tests/interpret/"
 
 
-def panel_url(pk: object) -> str:
+def helper_panel_url(pk: object) -> str:
     return f"/api/v1/catalog/panels/{pk}/"
 
 
-def test_url(pk: object) -> str:
+def helper_test_url(pk: object) -> str:
     return f"/api/v1/catalog/tests/{pk}/"
 
 
@@ -85,23 +85,24 @@ class TestUnitCRUD:
 class TestPanelCRUD:
     def _payload(self, **overrides: object) -> dict:
         return {
-            "code": "FBC",
-            "name": "Full Blood Count",
             "category": "Haematology",
-            "specimen_type": "blood_venous",
-            "turnaround_hours": 4,
-            "fasting_required": False,
+            "name": "Full Blood Count",
+            "code": "FBC",
+            "description": "A random description",
+            "loinc_code": "testcode",
             "is_active": True,
+            "price": 150,
             **overrides,
         }
 
     def test_lab_manager_can_create_panel(self, lab_manager_client: APIClient) -> None:
         resp = lab_manager_client.post(PANELS_URL, self._payload(), format="json")
+        print(resp.data)
         assert resp.status_code == status.HTTP_201_CREATED
         assert resp.json()["code"] == "FBC"
 
     def test_lab_analyst_can_read_panels(self, lab_analyst_client: APIClient) -> None:
-        TestPanelFactory.create_batch(3)
+        LabTestPanelFactory.create_batch(3)
         resp = lab_analyst_client.get(PANELS_URL)
         assert resp.status_code == status.HTTP_200_OK
 
@@ -114,16 +115,16 @@ class TestPanelCRUD:
         assert resp.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_retrieve_panel_includes_tests(self, lab_analyst_client: APIClient) -> None:
-        panel = TestPanelFactory()
-        TestDefinitionFactory.create_batch(3, panel=panel)
+        panel = LabTestPanelFactory()
+        LabTestDefinitionFactory.create_batch(3, panel=panel)
 
-        resp = lab_analyst_client.get(panel_url(panel.id))
+        resp = lab_analyst_client.get(helper_panel_url(panel.id))
         assert resp.status_code == status.HTTP_200_OK
         assert len(resp.json()["tests"]) == 3
 
     def test_panel_soft_delete(self, lab_manager_client: APIClient) -> None:
-        panel = TestPanelFactory()
-        resp = lab_manager_client.delete(panel_url(panel.id))
+        panel = LabTestPanelFactory()
+        resp = lab_manager_client.delete(helper_panel_url(panel.id))
         assert resp.status_code == status.HTTP_200_OK
 
         panel.refresh_from_db()
@@ -135,22 +136,22 @@ class TestPanelCRUD:
         assert str(panel.id) not in ids
 
     def test_panel_update(self, lab_manager_client: APIClient) -> None:
-        panel = TestPanelFactory(name="Old Name")
+        panel = LabTestPanelFactory(name="Old Name")
         resp = lab_manager_client.patch(
-            panel_url(panel.id), {"name": "Updated Panel Name"}, format="json"
+            helper_panel_url(panel.id), {"name": "Updated Panel Name"}, format="json"
         )
         assert resp.status_code == status.HTTP_200_OK
         panel.refresh_from_db()
         assert panel.name == "Updated Panel Name"
 
     def test_duplicate_panel_code_rejected(self, lab_manager_client: APIClient) -> None:
-        TestPanelFactory(code="DUPE")
+        LabTestPanelFactory(code="DUPE")
         resp = lab_manager_client.post(PANELS_URL, self._payload(code="DUPE"), format="json")
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_filter_by_category(self, lab_analyst_client: APIClient) -> None:
-        TestPanelFactory(category="Haematology")
-        TestPanelFactory(category="Biochemistry")
+        LabTestPanelFactory(category="Haematology")
+        LabTestPanelFactory(category="Biochemistry")
 
         resp = lab_analyst_client.get(PANELS_URL, {"category": "Haematology"})
         results = resp.json()["results"]
@@ -223,18 +224,18 @@ class TestDefinitionCRUD:
     def test_retrieve_test_includes_reference_ranges(
         self, lab_analyst_client: APIClient
     ) -> None:
-        test = TestDefinitionFactory()
+        test = LabTestDefinitionFactory()
         ReferenceRangeFactory(test=test)
         ReferenceRangeFactory(test=test, sex="male")
 
-        resp = lab_analyst_client.get(test_url(test.id))
+        resp = lab_analyst_client.get(helper_test_url(test.id))
         assert resp.status_code == status.HTTP_200_OK
         assert len(resp.json()["reference_ranges"]) == 2
 
     def test_update_replaces_reference_ranges(
         self, lab_manager_client: APIClient
     ) -> None:
-        test = TestDefinitionFactory()
+        test = LabTestDefinitionFactory()
         ReferenceRangeFactory(test=test)
         ReferenceRangeFactory(test=test)
         assert ReferenceRange.objects.filter(test=test).count() == 2
@@ -250,13 +251,13 @@ class TestDefinitionCRUD:
                 }
             ]
         }
-        resp = lab_manager_client.patch(test_url(test.id), payload, format="json")
+        resp = lab_manager_client.patch(helper_test_url(test.id), payload, format="json")
         assert resp.status_code == status.HTTP_200_OK
         assert ReferenceRange.objects.filter(test=test).count() == 1
 
     def test_test_soft_delete(self, lab_manager_client: APIClient) -> None:
-        test = TestDefinitionFactory()
-        resp = lab_manager_client.delete(test_url(test.id))
+        test = LabTestDefinitionFactory()
+        resp = lab_manager_client.delete(helper_test_url(test.id))
         assert resp.status_code == status.HTTP_200_OK
 
         test.refresh_from_db()
@@ -264,14 +265,14 @@ class TestDefinitionCRUD:
         assert not TestDefinition.objects.filter(id=test.id).exists()
 
     def test_search_by_loinc_code(self, lab_analyst_client: APIClient) -> None:
-        TestDefinitionFactory(loinc_code="99999-9")
+        LabTestDefinitionFactory(loinc_code="99999-9")
         resp = lab_analyst_client.get(TESTS_URL, {"search": "99999-9"})
         assert resp.status_code == status.HTTP_200_OK
         assert len(resp.json()["results"]) >= 1
 
     def test_filter_by_specimen_type(self, lab_analyst_client: APIClient) -> None:
-        TestDefinitionFactory(specimen_type="urine")
-        TestDefinitionFactory(specimen_type="serum")
+        LabTestDefinitionFactory(specimen_type="urine")
+        LabTestDefinitionFactory(specimen_type="serum")
 
         resp = lab_analyst_client.get(TESTS_URL, {"specimen_type": "urine"})
         results = resp.json()["results"]
@@ -326,7 +327,7 @@ class TestResultInterpretation:
     def _create_test_with_ranges(self) -> TestDefinition:
         """Helper: create a numeric test with adult male/female ranges."""
         unit = UnitFactory(symbol="g/dL-test")
-        test = TestDefinitionFactory(
+        test = LabTestDefinitionFactory(
             code="HGB-INTERP",
             result_type=TestDefinition.ResultType.NUMERIC,
             unit=unit,
@@ -426,7 +427,7 @@ class TestResultInterpretation:
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
     def test_non_numeric_test_returns_400(self, lab_analyst_client: APIClient) -> None:
-        test = TestDefinitionFactory(
+        test = LabTestDefinitionFactory(
             code="CODED-TEST",
             result_type=TestDefinition.ResultType.CODED,
         )
@@ -441,7 +442,7 @@ class TestResultInterpretation:
     ) -> None:
         # Create test but don't add any reference ranges
         unit = UnitFactory(symbol="unk")
-        test = TestDefinitionFactory(
+        test = LabTestDefinitionFactory(
             code="NORANGE",
             result_type=TestDefinition.ResultType.NUMERIC,
             unit=unit,
@@ -481,7 +482,7 @@ class TestResultInterpretation:
         self, lab_analyst_client: APIClient
     ) -> None:
         unit = UnitFactory(symbol="xx/dL")
-        test = TestDefinitionFactory(
+        test = LabTestDefinitionFactory(
             code="REPORTABLE",
             result_type=TestDefinition.ResultType.NUMERIC,
             unit=unit,

@@ -9,7 +9,7 @@ ALLOWED_HOSTS = ["*"]
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "dream_core_dev.sqlite3",  # type: ignore[name-defined]  # noqa: F405
+        "NAME": BASE_DIR / "dream_core_dev.sqlite3", # type: ignore[name-defined]  # noqa: F405
     }
 }
 

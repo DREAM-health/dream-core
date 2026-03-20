@@ -20,21 +20,21 @@ class UnitFactory(DjangoModelFactory):
     description = ""
 
 
-class TestPanelFactory(DjangoModelFactory):
+class LabTestPanelFactory(DjangoModelFactory):
     class Meta:
         model = TestPanel
 
     code = factory.Sequence(lambda n: f"PNL{n:04d}")
     name = factory.Sequence(lambda n: f"Panel {n}")
     category = "Biochemistry"
-    specimen_type = "serum"
-    turnaround_hours = 24
-    fasting_required = False
+    # specimen_type = "serum"
+    # turnaround_hours = 24
+    # fasting_required = False
     is_active = True
-    sort_order = factory.Sequence(lambda n: n)
+    # sort_order = factory.Sequence(lambda n: n)
 
 
-class TestDefinitionFactory(DjangoModelFactory):
+class LabTestDefinitionFactory(DjangoModelFactory):
     class Meta:
         model = TestDefinition
 
@@ -58,7 +58,7 @@ class ReferenceRangeFactory(DjangoModelFactory):
     class Meta:
         model = ReferenceRange
 
-    test = factory.SubFactory(TestDefinitionFactory)
+    test = factory.SubFactory(LabTestDefinitionFactory)
     sex = ReferenceRange.GenderChoices.ANY
     label = "Adult"
     low_normal = Decimal("10.00")

@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from tests.accounts.factories import RoleFactory, UserFactory
 
+from rest_framework.request import Request
 
 pytestmark = pytest.mark.django_db
 
@@ -36,9 +37,11 @@ class TestUserManagement:
     def test_admin_can_create_user(self, admin_client: APIClient) -> None:
         resp = admin_client.post(self.LIST_URL, {
             "email": "new@test.com",
-            "password": "NewUser123!",
+            "password": "NewUser123!@",
             "first_name": "New",
             "last_name": "User",
+            "professional_id": "test-xxxx",
+            "department": "Test 1127"
         })
         assert resp.status_code == status.HTTP_201_CREATED
 
@@ -109,10 +112,8 @@ class TestUserRoleAssignment:
         from apps.accounts.permissions import HasRole
         from unittest.mock import MagicMock
 
-        user = UserFactory(is_superuser=True)
-        request = MagicMock()
-        request.user = user
-        request.user.is_authenticated = True
+        request = MagicMock(spec=Request)
+        request.user = UserFactory(is_superuser=True)
         view = MagicMock()
 
         perm = HasRole("ANY_ROLE")

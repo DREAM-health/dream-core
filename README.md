@@ -1,9 +1,5 @@
 # dream-core — Open Source Healthcare Platform Kernel
 
-Phase 1 backend implementation: Django REST Framework + FHIR R4 + RBAC + Auditlog.
-
----
-
 ## Project Structure
 
 ```

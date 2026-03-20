@@ -2,29 +2,34 @@
 apps/catalog/models.py
 
 Test Catalog — the definitive registry of laboratory tests available
-in MedLIMS (and orderable from MedClinic).
+in dream-lab (and orderable from dream-cen).
 
 Model hierarchy:
-  TestCategory          — e.g. "Haematology", "Biochemistry", "Microbiology"
-    TestPanel           — e.g. "Complete Blood Count", "Lipid Panel"
-      TestDefinition    — e.g. "Haemoglobin", "LDL Cholesterol"
-        ReferenceRange  — age/gender/condition-specific expected ranges
-        TestMethod      — analytical method used (can vary by instrument)
+  TestPanel           — e.g. "Complete Blood Count", "Lipid Panel"
+    TestDefinition    — e.g. "Haemoglobin", "LDL Cholesterol"
+      ReferenceRange  — age/gender/condition-specific expected ranges
 
 Additional:
-  Unit                  — controlled vocabulary of measurement units (UCUM)
-  SampleType            — e.g. "Serum", "EDTA Whole Blood", "Urine"
+  Unit                — controlled vocabulary of measurement units (UCUM)
 
 Design decisions:
   - All entities soft-deletable and fully audited.
+  - category on TestPanel and TestDefinition is a plain CharField (free text /
+    controlled at the application layer) rather than a FK to TestCategory.
+    This removes a join dependency and lets each downstream product manage its
+    own category taxonomy without a shared DB table.
   - ReferenceRange is separate from TestDefinition so multiple
     population-specific ranges can coexist (paediatric vs adult, M vs F).
-  - LOINC codes stored where known for interoperability.
-  - TAT (turnaround time) tracked at the TestDefinition level.
+  - LOINC and SNOMED codes stored where known for interoperability.
+  - TestDefinition has a direct FK to TestPanel (one primary panel per test).
+  - TAT stored as a single turnaround_hours IntegerField for simplicity.
+  - ReferenceRange.interpret() encapsulates the flag logic so the view and
+    model tests share a single implementation.
 """
 from __future__ import annotations
 
-from django.core.validators import MinValueValidator
+from decimal import Decimal
+
 from django.db import models
 from auditlog.registry import auditlog
 
@@ -118,29 +123,38 @@ class TestPanel(SoftDeleteModel):
     """
     A named group of tests ordered together.
     e.g. Complete Blood Count, Comprehensive Metabolic Panel, Lipid Panel.
+
+    category is a free-text CharField managed at the application layer rather
+    than a FK — keeps the catalog self-contained and avoids requiring a
+    TestCategory record before creating a panel.
     """
-    category: models.ForeignKey = models.ForeignKey(
-        TestCategory,
-        on_delete=models.PROTECT,
-        related_name="panels",
-    )
     name: models.CharField = models.CharField(max_length=200)
     code: models.CharField = models.CharField(
         max_length=50, unique=True,
-        help_text="Unique order code for this panel.",
+        help_text="Unique order code for this panel, e.g. 'FBC', 'CMP'.",
     )
     description: models.TextField = models.TextField(blank=True)
+
+    # Classification
+    category: models.CharField = models.CharField(
+        max_length=150, blank=True, db_index=True,
+        help_text="Discipline label, e.g. 'Haematology', 'Biochemistry'.",
+    )
     loinc_code: models.CharField = models.CharField(
         max_length=20, blank=True,
         help_text="LOINC panel code for interoperability.",
     )
+
+    # Flags
     is_active: models.BooleanField = models.BooleanField(default=True)
+
+    # Pricing
     price: models.DecimalField = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True,
     )
 
     class Meta:
-        ordering = ["category", "name"]
+        ordering = ["name"]
         verbose_name = "Test Panel"
         verbose_name_plural = "Test Panels"
 
@@ -151,7 +165,7 @@ class TestPanel(SoftDeleteModel):
 class TestDefinition(SoftDeleteModel):
     """
     A single laboratory test (analyte).
-    e.g. Haemoglobin, Serum Creatinine, TSH, Blood Culture.
+    e.g. Haemoglobin, Serum Creatinine, TSH.
     """
 
     class ResultTypeChoices(models.TextChoices):
@@ -160,31 +174,34 @@ class TestDefinition(SoftDeleteModel):
         CODED = "coded", "Coded (from value set)"
         SEMI_QUANTITATIVE = "semi_quant", "Semi-quantitative"
 
+    # Alias used by views and tests: TestDefinition.ResultType.NUMERIC
+    ResultType = ResultTypeChoices
+
     class SpecimenTypeChoices(models.TextChoices):
-        HAEMOGLOBIN = "haemoglobin", "Haemoglobin"
         SERUM = "serum", "Serum"
-        TSH = "tsh", "Thyroid-Stimulating Hormone"
-        BLOOD = "blood", "Blood culture"
+        EDTA = "edta_whole_blood", "EDTA Whole Blood"
+        BLOOD_VENOUS = "blood_venous", "Venous Whole Blood"
+        CITRATE = "citrate", "Citrate (coagulation)"
+        URINE = "urine", "Urine"
+        CSF = "csf", "CSF"
+        SWAB = "swab", "Swab"
+        OTHER = "other", "Other"
 
-    class TATUnitChoices(models.TextChoices):
-        MINUTES = "min", "Minutes"
-        HOURS = "hours", "Hours"
-        DAYS = "days", "Days"
-
-    category: models.ForeignKey = models.ForeignKey(
-        TestCategory,
-        on_delete=models.PROTECT,
-        related_name="tests",
-    )
-    panels: models.ManyToManyField = models.ManyToManyField(
+    # Primary panel assignment (optional)
+    panel: models.ForeignKey = models.ForeignKey(
         TestPanel,
-        through="TestPanelMembership",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name="tests",
-        blank=True,
+        help_text="Primary panel this test belongs to.",
     )
 
     # Identification
     name: models.CharField = models.CharField(max_length=200, db_index=True)
+    full_name: models.CharField = models.CharField(
+        max_length=300, blank=True,
+        help_text="Full official name if different from the display name.",
+    )
     code: models.CharField = models.CharField(
         max_length=50, unique=True,
         help_text="Unique order code, e.g. 'HGB', 'CREAT'.",
@@ -194,12 +211,25 @@ class TestDefinition(SoftDeleteModel):
         max_length=20, blank=True,
         help_text="LOINC code, e.g. '718-7' for Haemoglobin.",
     )
+    snomed_code: models.CharField = models.CharField(
+        max_length=30, blank=True,
+        help_text="SNOMED CT concept code.",
+    )
     description: models.TextField = models.TextField(blank=True)
-    clinical_notes: models.TextField = models.TextField(blank=True)
 
-    # Sample requirements
-    sample_types: models.ManyToManyField = models.ManyToManyField(
-        SampleType, related_name="tests", blank=True,
+    # Classification
+    category: models.CharField = models.CharField(
+        max_length=150, blank=True, db_index=True,
+    )
+
+    # Specimen
+    specimen_type: models.CharField = models.CharField(
+        max_length=30,
+        choices=SpecimenTypeChoices.choices,
+        default=SpecimenTypeChoices.SERUM,
+    )
+    container_type: models.CharField = models.CharField(
+        max_length=100, blank=True,
     )
     minimum_volume_ml: models.DecimalField = models.DecimalField(
         max_digits=6, decimal_places=2, null=True, blank=True,
@@ -218,29 +248,41 @@ class TestDefinition(SoftDeleteModel):
         related_name="tests",
     )
     decimal_places: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(default=2)
+    # Allowed coded values for result_type='coded'
+    allowed_values: models.JSONField = models.JSONField(
+        default=list, blank=True,
+        help_text="Allowed coded result values, e.g. ['Positive', 'Negative'].",
+    )
 
-    # Turnaround time
-    tat_value: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(
-        null=True, blank=True, validators=[MinValueValidator(1)],
-    )
-    tat_unit: models.CharField = models.CharField(
-        max_length=10, choices=TATUnitChoices.choices, default=TATUnitChoices.HOURS,
-    )
-    critical_tat_value: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(
+    # Analytical method
+    method: models.CharField = models.CharField(max_length=200, blank=True)
+    instrument: models.CharField = models.CharField(max_length=200, blank=True)
+
+    # Turnaround
+    turnaround_hours: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(
         null=True, blank=True,
+        help_text="Routine turnaround time in hours.",
     )
-    critical_tat_unit: models.CharField = models.CharField(
-        max_length=10, choices=TATUnitChoices.choices, default=TATUnitChoices.HOURS,
+
+    # Workflow flags
+    requires_validation: models.BooleanField = models.BooleanField(
+        default=True,
+        help_text="Result requires lab manager validation before release.",
     )
+    reportable: models.BooleanField = models.BooleanField(
+        default=True,
+        help_text="Result is included in the patient report.",
+    )
+    requires_fasting: models.BooleanField = models.BooleanField(default=False)
+    is_active: models.BooleanField = models.BooleanField(default=True)
 
     price: models.DecimalField = models.DecimalField(
         max_digits=10, decimal_places=2, null=True, blank=True,
     )
-    is_active: models.BooleanField = models.BooleanField(default=True)
-    requires_fasting: models.BooleanField = models.BooleanField(default=False)
+    sort_order: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
-        ordering = ["category", "name"]
+        ordering = ["sort_order", "name"]
         verbose_name = "Test Definition"
         verbose_name_plural = "Test Definitions"
         indexes = [
@@ -253,8 +295,8 @@ class TestDefinition(SoftDeleteModel):
 
     @property
     def tat_display(self) -> str:
-        if self.tat_value:
-            return f"{self.tat_value} {self.get_tat_unit_display()}"
+        if self.turnaround_hours:
+            return f"{self.turnaround_hours} h"
         return "—"
 
 
@@ -283,6 +325,14 @@ class ReferenceRange(TimeStampedModel):
     """
     Population-specific reference ranges for a TestDefinition.
     Multiple ranges per test cover gender, age bracket, and condition variants.
+
+    interpret(value) returns a flag string:
+      N  = Normal
+      L  = Low
+      H  = High
+      LL = Critical Low
+      HH = Critical High
+      ?  = Outside reportable range or undetermined
     """
 
     class GenderChoices(models.TextChoices):
@@ -290,16 +340,11 @@ class ReferenceRange(TimeStampedModel):
         MALE = "male", "Male"
         FEMALE = "female", "Female"
 
-    class RangeTypeChoices(models.TextChoices):
-        NORMAL = "normal", "Normal"
-        THERAPEUTIC = "therapeutic", "Therapeutic"
-        TOXIC = "toxic", "Toxic"
-        CRITICAL_LOW = "critical_low", "Critical Low"
-        CRITICAL_HIGH = "critical_high", "Critical High"
-
     test: models.ForeignKey = models.ForeignKey(
         TestDefinition, on_delete=models.CASCADE, related_name="reference_ranges",
     )
+
+    # Population selectors
     gender: models.CharField = models.CharField(
         max_length=10, choices=GenderChoices.choices, default=GenderChoices.ANY,
     )
@@ -311,26 +356,39 @@ class ReferenceRange(TimeStampedModel):
         null=True, blank=True,
         help_text="Maximum age in days (exclusive). Null = no upper bound.",
     )
-    condition: models.CharField = models.CharField(max_length=100, blank=True)
+    label: models.CharField = models.CharField(
+        max_length=100, blank=True,
+        help_text="Human-readable label, e.g. 'Adult', 'Neonate', 'Pregnant'.",
+    )
 
-    # Numeric range
-    low: models.DecimalField = models.DecimalField(
+    # Normal range
+    low_normal: models.DecimalField = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True,
     )
-    high: models.DecimalField = models.DecimalField(
+    high_normal: models.DecimalField = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True,
     )
-    critical_low: models.DecimalField = models.DecimalField(
+
+    # Critical / panic range
+    low_critical: models.DecimalField = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True,
     )
-    critical_high: models.DecimalField = models.DecimalField(
+    high_critical: models.DecimalField = models.DecimalField(
         max_digits=12, decimal_places=4, null=True, blank=True,
     )
-    text_interpretation: models.TextField = models.TextField(blank=True)
-    range_type: models.CharField = models.CharField(
-        max_length=20, choices=RangeTypeChoices.choices, default=RangeTypeChoices.NORMAL,
+
+    # Analytical measurement range (reportable range)
+    low_reportable: models.DecimalField = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True,
+        help_text="Lower limit of the analytical measurement range.",
     )
+    high_reportable: models.DecimalField = models.DecimalField(
+        max_digits=12, decimal_places=4, null=True, blank=True,
+        help_text="Upper limit of the analytical measurement range.",
+    )
+
     notes: models.TextField = models.TextField(blank=True)
+    is_active: models.BooleanField = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["test", "gender", "age_min_days"]
@@ -339,8 +397,8 @@ class ReferenceRange(TimeStampedModel):
 
     def __str__(self) -> str:
         parts = [self.test.code, self.gender]
-        if self.low is not None and self.high is not None:
-            parts.append(f"[{self.low}–{self.high}]")
+        if self.low_normal is not None and self.high_normal is not None:
+            parts.append(f"[{self.low_normal}–{self.high_normal}]")
         return " | ".join(parts)
 
     @property
@@ -350,6 +408,39 @@ class ReferenceRange(TimeStampedModel):
         lo = f"{self.age_min_days}d" if self.age_min_days is not None else "0d"
         hi = f"{self.age_max_days}d" if self.age_max_days is not None else "∞"
         return f"{lo} – {hi}"
+
+    def interpret(self, value: Decimal) -> str:
+        """
+        Evaluate a numeric result value against this reference range and
+        return the appropriate flag.
+
+        Flag hierarchy (checked in order of clinical severity):
+          ?  — value is outside the reportable/analytical measurement range
+          LL — value is at or below the critical low threshold
+          HH — value is at or above the critical high threshold
+          L  — value is below the normal low
+          H  — value is above the normal high
+          N  — value is within the normal range (inclusive of boundaries)
+        """
+        # Outside reportable range — result cannot be reported
+        if self.low_reportable is not None and value < self.low_reportable:
+            return "?"
+        if self.high_reportable is not None and value > self.high_reportable:
+            return "?"
+
+        # Critical thresholds (panic values)
+        if self.low_critical is not None and value < self.low_critical:
+            return "LL"
+        if self.high_critical is not None and value > self.high_critical:
+            return "HH"
+
+        # Normal range boundaries (inclusive)
+        if self.low_normal is not None and value < self.low_normal:
+            return "L"
+        if self.high_normal is not None and value > self.high_normal:
+            return "H"
+
+        return "N"
 
 
 class TestMethod(TimeStampedModel):
