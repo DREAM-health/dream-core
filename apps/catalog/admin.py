@@ -3,18 +3,19 @@ from django.contrib import admin
 from apps.catalog.models import (
     ReferenceRange,
     SampleType,
-    TestCategory,
-    TestDefinition,
-    TestMethod,
-    TestPanel,
-    TestPanelMembership,
-    Unit,
+    LabTestCategory,
+    LabTestDefinition,
+    LabTestMethod,
+    LabTestPanel,
+    LabTestPanelMembership,
+    MeasurementUnit,
+    LabTestSampleMembership,
 )
 
 
 # ── Unit ──────────────────────────────────────────────────────────────────────
 
-@admin.register(Unit)
+@admin.register(MeasurementUnit)
 class UnitAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ["symbol", "name", "ucum_code"]
     search_fields = ["name", "symbol", "ucum_code"]
@@ -28,35 +29,41 @@ class SampleTypeAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     search_fields = ["code", "name"]
 
 
-# ── TestCategory ──────────────────────────────────────────────────────────────
+class LabTestPanelMembership(admin.ModelAdmin):  # type: ignore[type-arg]
+    model = LabTestSampleMembership
+    extra = 1
+    fields = ["lab_test", "sample_type", "is_preferred", "minimum_volume_ml"]
+    autocomplete_fields = ["lab_test"]
 
-@admin.register(TestCategory)
-class TestCategoryAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+
+# ── LabTestCategory ──────────────────────────────────────────────────────────────
+
+@admin.register(LabTestCategory)
+class LabTestCategoryAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ["code", "name", "sort_order"]
     search_fields = ["code", "name"]
     ordering = ["sort_order", "name"]
 
 
-# ── TestPanel ─────────────────────────────────────────────────────────────────
+# ── LabTestPanel ─────────────────────────────────────────────────────────────────
 
-class TestPanelMembershipInline(admin.TabularInline):  # type: ignore[type-arg]
-    model = TestPanelMembership
+class LabTestPanelMembershipInline(admin.TabularInline):  # type: ignore[type-arg]
+    model = LabTestPanelMembership
     extra = 1
-    fields = ["test", "sort_order", "is_optional"]
-    autocomplete_fields = ["test"]
+    fields = ["lab_test", "sort_order", "is_optional"]
+    autocomplete_fields = ["lab_test"]
 
 
-@admin.register(TestPanel)
-class TestPanelAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+@admin.register(LabTestPanel)
+class LabTestPanelAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = ["code", "name", "category", "is_active", "price"]
     list_filter = ["category", "is_active"]
     search_fields = ["code", "name", "loinc_code"]
     ordering = ["category", "name"]
-    inlines = [TestPanelMembershipInline]
-    raw_id_fields = ["category"]
+    inlines = [LabTestPanelMembershipInline]
 
 
-# ── TestDefinition ────────────────────────────────────────────────────────────
+# ── LabTestDefinition ────────────────────────────────────────────────────────────
 
 class ReferenceRangeInline(admin.TabularInline):  # type: ignore[type-arg]
     model = ReferenceRange
@@ -69,14 +76,14 @@ class ReferenceRangeInline(admin.TabularInline):  # type: ignore[type-arg]
     ]
 
 
-class TestMethodInline(admin.TabularInline):  # type: ignore[type-arg]
-    model = TestMethod
+class LabTestMethodInline(admin.TabularInline):  # type: ignore[type-arg]
+    model = LabTestMethod
     extra = 0
     fields = ["name", "instrument", "is_default", "precision_cv"]
 
 
-@admin.register(TestDefinition)
-class TestDefinitionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
+@admin.register(LabTestDefinition)
+class LabTestDefinitionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_display = [
         "code", "name", "category", "result_type",
         "unit", "is_active", "requires_fasting",
@@ -84,6 +91,5 @@ class TestDefinitionAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     list_filter = ["result_type", "is_active", "requires_fasting", "category"]
     search_fields = ["code", "name", "loinc_code", "abbreviation"]
     ordering = ["category", "name"]
-    inlines = [ReferenceRangeInline, TestMethodInline]
-    raw_id_fields = ["category", "unit"]
-    filter_horizontal = ["sample_types"]
+    inlines = [ReferenceRangeInline, LabTestMethodInline]
+    raw_id_fields = ["unit"]

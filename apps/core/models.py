@@ -9,6 +9,18 @@ Design decisions:
 - Soft-delete only: medical records must NEVER be physically destroyed
 - created_at / updated_at on every model
 - created_by / updated_by tracked via middleware (set in save())
+
+
+UPDATED: 
+    Change from the original:
+        - SoftDeleteModel.hard_delete() is removed from this file.
+        - Models that need hard-delete capability must mix in HardDeleteGuard
+            (from apps.core.hard_delete) which provides the guarded version.
+        - Models that do NOT mix in HardDeleteGuard have no hard_delete() at all —
+            the operation is simply unavailable, not just unguarded.
+        
+This is intentional: the absence of hard_delete() on plain SoftDeleteModel
+forces every callsite to be explicit about whether it needs the capability.
 """
 import uuid
 from typing import Any
@@ -93,8 +105,24 @@ class SoftDeleteModel(AuditedModel):
 
     COMPLIANCE REQUIREMENT:
     Medical records must never be physically deleted.
-    Use .delete() to soft-delete; use .hard_delete() only in extraordinary
-    circumstances with appropriate audit justification.
+    Use .delete() to soft-delete.
+
+    Hard deletion is intentionally removed from this base class.
+    Models that require hard-delete capability (e.g. for LGPD/GDPR erasure
+    under regulatory authorisation) must also mixin HardDeleteGuard from
+    apps.core.hard_delete, which adds a guarded hard_delete() method
+    requiring an explicit permission and a written authorisation token:
+ 
+        from apps.core.hard_delete import HardDeleteGuard
+ 
+        class Patient(HardDeleteGuard, SoftDeleteModel):
+            ...
+ 
+        # Later, with explicit authorisation:
+        patient.hard_delete(
+            authorised_by=request.user,
+            authorisation_token="LGPD erasure request #2024-0042 — DPO approved",
+        )
     """
 
     deleted_at: models.DateTimeField = models.DateTimeField(
@@ -153,9 +181,3 @@ class SoftDeleteModel(AuditedModel):
         self.deletion_reason = ""
         self.save(update_fields=["deleted_at", "deleted_by", "deletion_reason", "updated_at"])
 
-    def hard_delete(self, using: Any = None, keep_parents: bool = False) -> tuple[int, dict[str, int]]:
-        """
-        Physical deletion — use only with explicit regulatory justification.
-        This bypasses soft-delete and permanently removes the record.
-        """
-        return super().delete(using=using, keep_parents=keep_parents)

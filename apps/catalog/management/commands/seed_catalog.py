@@ -11,7 +11,7 @@ This is NOT a migration — it is idempotent and safe to run repeatedly.
 """
 from django.core.management.base import BaseCommand
 from decimal import Decimal
-from apps.catalog.models import Unit, TestPanel, TestDefinition, ReferenceRange
+from apps.catalog.models import MeasurementUnit, LabTestPanel, LabTestDefinition, ReferenceRange
 
 
 UNITS = [
@@ -294,9 +294,9 @@ class Command(BaseCommand):
 
     def handle(self, *args: object, **options: object) -> None:
         self.stdout.write("Seeding units...")
-        unit_map: dict[str, Unit] = {}
+        unit_map: dict[str, MeasurementUnit] = {}
         for u in UNITS:
-            unit, created = Unit.objects.get_or_create(
+            unit, created = MeasurementUnit.objects.get_or_create(
                 symbol=u["symbol"],
                 defaults={"name": u["name"], "ucum_code": u.get("ucum_code", "")},
             )
@@ -306,7 +306,7 @@ class Command(BaseCommand):
 
         for panel_data in PANELS_DATA:
             tests_data = panel_data.pop("tests")
-            panel, panel_created = TestPanel.objects.get_or_create(
+            panel, panel_created = LabTestPanel.objects.get_or_create(
                 code=panel_data["code"],
                 defaults={k: v for k, v in panel_data.items()},
             )
@@ -320,14 +320,14 @@ class Command(BaseCommand):
                 unit_symbol = t.pop("unit_symbol", None)
                 unit = unit_map.get(unit_symbol) if unit_symbol else None
 
-                test, test_created = TestDefinition.objects.get_or_create(
+                test, test_created = LabTestDefinition.objects.get_or_create(
                     code=t["code"],
                     defaults={
                         **t,
                         "panel": panel,
                         "unit": unit,
                         "sort_order": i,
-                        "result_type": TestDefinition.ResultType.NUMERIC,
+                        "result_type": LabTestDefinition.ResultTypeChoices.NUMERIC,
                     },
                 )
                 if test_created:

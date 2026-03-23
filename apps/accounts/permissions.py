@@ -73,7 +73,7 @@ class ReadOnly(BasePermission):
         return request.method in ("GET", "HEAD", "OPTIONS")
 
 
-def HasRole(role_name: str) -> Type[BasePermission]:
+def HasRole(role_name: str) -> BasePermission:
     """
     Factory that returns a DRF permission *class* requiring a specific role.
 
@@ -99,7 +99,7 @@ def HasRole(role_name: str) -> Type[BasePermission]:
     return _HasRole()
 
 
-def HasAnyRole(*role_names: str) -> Type[BasePermission]:
+def HasAnyRole(*role_names: str) -> BasePermission:
     """
     Factory that returns a DRF permission *class* requiring at least one
     of the specified roles.

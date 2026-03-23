@@ -29,8 +29,8 @@ dream-core/
 │   │   ├── serializers.py
 │   │   └── views.py
 │   │
-│   ├── catalog/                # Test Catalog (MedLIMS)
-│   │   ├── models.py           # Unit, TestPanel, TestDefinition, ReferenceRange
+│   ├── catalog/                # LabTest Catalog (MedLIMS)
+│   │   ├── models.py           # Unit, LabTestPanel, LabTestDefinition, ReferenceRange
 │   │   ├── serializers.py
 │   │   ├── views.py            # Includes result interpretation engine
 │   │   └── management/commands/seed_catalog.py
@@ -182,9 +182,9 @@ ruff format apps/ tests/
 | GET/POST | `/api/v1/catalog/units/` | GET: any clinical; POST: LAB_MANAGER+ |
 | GET/POST | `/api/v1/catalog/panels/` | GET: any clinical; POST: LAB_MANAGER+ |
 | GET/PATCH/DELETE | `/api/v1/catalog/panels/{id}/` | GET: any; write: LAB_MANAGER+ |
-| GET/POST | `/api/v1/catalog/tests/` | GET: any clinical; POST: LAB_MANAGER+ |
-| GET/PATCH/DELETE | `/api/v1/catalog/tests/{id}/` | GET: any; write: LAB_MANAGER+ |
-| POST | `/api/v1/catalog/tests/interpret/` | Any clinical role |
+| GET/POST | `/api/v1/catalog/labtests/` | GET: any clinical; POST: LAB_MANAGER+ |
+| GET/PATCH/DELETE | `/api/v1/catalog/labtests/{id}/` | GET: any; write: LAB_MANAGER+ |
+| POST | `/api/v1/catalog/labtests/interpret/` | Any clinical role |
 
 ### Audit
 
@@ -220,7 +220,7 @@ ruff format apps/ tests/
 
 ### Audit trail
 - Every mutation on `User`, `Role`, `Patient`, `PatientIdentifier`, `PatientContact`,
-  `Unit`, `TestPanel`, `TestDefinition`, `ReferenceRange` is automatically logged
+  `Unit`, `LabTestPanel`, `LabTestDefinition`, `ReferenceRange` is automatically logged
   by `django-auditlog` with actor, timestamp, IP, and before/after field values.
 - The `AuditlogMiddleware` captures the request user automatically.
 - Audit log entries are **never soft-deleted** — they are immutable records.

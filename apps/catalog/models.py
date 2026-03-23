@@ -1,30 +1,31 @@
 """
 apps/catalog/models.py
 
-Test Catalog — the definitive registry of laboratory tests available
+Lab Test Catalog — the definitive registry of laboratory tests available
 in dream-lab (and orderable from dream-cen).
 
 Model hierarchy:
-  TestPanel           — e.g. "Complete Blood Count", "Lipid Panel"
-    TestDefinition    — e.g. "Haemoglobin", "LDL Cholesterol"
-      ReferenceRange  — age/gender/condition-specific expected ranges
+    LabTestCategory         — e.g. "Haematology", "Biochemistry", "Immunology"
+        LabTestPanel           — e.g. "Complete Blood Count", "Lipid Panel"
+            LabTestDefinition    — e.g. "Haemoglobin", "LDL Cholesterol"
+            ReferenceRange    — age/gender/condition-specific expected ranges
 
 Additional:
-  Unit                — controlled vocabulary of measurement units (UCUM)
+  MeasurementUnit                   — controlled vocabulary of measurement units (UCUM)
 
 Design decisions:
   - All entities soft-deletable and fully audited.
-  - category on TestPanel and TestDefinition is a plain CharField (free text /
-    controlled at the application layer) rather than a FK to TestCategory.
+  - category on LabTestPanel and LabTestDefinition is a plain CharField (free text /
+    controlled at the application layer) rather than a FK to LabTestCategory.
     This removes a join dependency and lets each downstream product manage its
     own category taxonomy without a shared DB table.
-  - ReferenceRange is separate from TestDefinition so multiple
+  - ReferenceRange is separate from LabTestDefinition so multiple
     population-specific ranges can coexist (paediatric vs adult, M vs F).
   - LOINC and SNOMED codes stored where known for interoperability.
-  - TestDefinition has a direct FK to TestPanel (one primary panel per test).
+  - LabTestDefinition has a direct FK to LabTestPanel (one primary panel per lab test).
   - TAT stored as a single turnaround_hours IntegerField for simplicity.
   - ReferenceRange.interpret() encapsulates the flag logic so the view and
-    model tests share a single implementation.
+    model lab tests share a single implementation.
 """
 from __future__ import annotations
 
@@ -36,7 +37,7 @@ from auditlog.registry import auditlog
 from apps.core.models import SoftDeleteModel, TimeStampedModel
 
 
-class Unit(TimeStampedModel):
+class MeasurementUnit(SoftDeleteModel):
     """
     Controlled vocabulary of measurement units.
     Aligns with the Unified Code for Units of Measure (UCUM).
@@ -64,7 +65,7 @@ class Unit(TimeStampedModel):
         return self.symbol
 
 
-class SampleType(TimeStampedModel):
+class SampleType(SoftDeleteModel):
     """
     Biological specimen types.
     e.g. Serum, EDTA Whole Blood, Urine (midstream), CSF, Swab.
@@ -97,9 +98,9 @@ class SampleType(TimeStampedModel):
         return f"{self.name} ({self.code})"
 
 
-class TestCategory(SoftDeleteModel):
+class LabTestCategory(SoftDeleteModel):
     """
-    High-level grouping of tests.
+    High-level grouping of laboratory tests.
     e.g. Haematology, Biochemistry, Immunology, Microbiology, Coagulation.
     """
     name: models.CharField = models.CharField(max_length=150, unique=True)
@@ -112,21 +113,21 @@ class TestCategory(SoftDeleteModel):
 
     class Meta:
         ordering = ["sort_order", "name"]
-        verbose_name = "Test Category"
-        verbose_name_plural = "Test Categories"
+        verbose_name = "Lab Test Category"
+        verbose_name_plural = "Lab Test Categories"
 
     def __str__(self) -> str:
         return self.name
 
 
-class TestPanel(SoftDeleteModel):
+class LabTestPanel(SoftDeleteModel):
     """
-    A named group of tests ordered together.
+    A named group of laboratory tests ordered together.
     e.g. Complete Blood Count, Comprehensive Metabolic Panel, Lipid Panel.
 
     category is a free-text CharField managed at the application layer rather
     than a FK — keeps the catalog self-contained and avoids requiring a
-    TestCategory record before creating a panel.
+    LabTestCategory record before creating a panel.
     """
     name: models.CharField = models.CharField(max_length=200)
     code: models.CharField = models.CharField(
@@ -155,14 +156,14 @@ class TestPanel(SoftDeleteModel):
 
     class Meta:
         ordering = ["name"]
-        verbose_name = "Test Panel"
-        verbose_name_plural = "Test Panels"
+        verbose_name = "Lab Test Panel"
+        verbose_name_plural = "Lab Test Panels"
 
     def __str__(self) -> str:
         return f"{self.code} — {self.name}"
 
 
-class TestDefinition(SoftDeleteModel):
+class LabTestDefinition(SoftDeleteModel):
     """
     A single laboratory test (analyte).
     e.g. Haemoglobin, Serum Creatinine, TSH.
@@ -173,28 +174,6 @@ class TestDefinition(SoftDeleteModel):
         TEXT = "text", "Free text"
         CODED = "coded", "Coded (from value set)"
         SEMI_QUANTITATIVE = "semi_quant", "Semi-quantitative"
-
-    # Alias used by views and tests: TestDefinition.ResultType.NUMERIC
-    ResultType = ResultTypeChoices
-
-    class SpecimenTypeChoices(models.TextChoices):
-        SERUM = "serum", "Serum"
-        EDTA = "edta_whole_blood", "EDTA Whole Blood"
-        BLOOD_VENOUS = "blood_venous", "Venous Whole Blood"
-        CITRATE = "citrate", "Citrate (coagulation)"
-        URINE = "urine", "Urine"
-        CSF = "csf", "CSF"
-        SWAB = "swab", "Swab"
-        OTHER = "other", "Other"
-
-    # Primary panel assignment (optional)
-    panel: models.ForeignKey = models.ForeignKey(
-        TestPanel,
-        on_delete=models.SET_NULL,
-        null=True, blank=True,
-        related_name="tests",
-        help_text="Primary panel this test belongs to.",
-    )
 
     # Identification
     name: models.CharField = models.CharField(max_length=200, db_index=True)
@@ -222,12 +201,6 @@ class TestDefinition(SoftDeleteModel):
         max_length=150, blank=True, db_index=True,
     )
 
-    # Specimen
-    specimen_type: models.CharField = models.CharField(
-        max_length=30,
-        choices=SpecimenTypeChoices.choices,
-        default=SpecimenTypeChoices.SERUM,
-    )
     container_type: models.CharField = models.CharField(
         max_length=100, blank=True,
     )
@@ -242,7 +215,7 @@ class TestDefinition(SoftDeleteModel):
         default=ResultTypeChoices.NUMERIC,
     )
     unit: models.ForeignKey = models.ForeignKey(
-        Unit,
+        MeasurementUnit,
         on_delete=models.PROTECT,
         null=True, blank=True,
         related_name="tests",
@@ -300,25 +273,39 @@ class TestDefinition(SoftDeleteModel):
         return "—"
 
 
-class TestPanelMembership(models.Model):
-    """Through table for TestPanel ↔ TestDefinition M2M with ordering."""
+class LabTestPanelMembership(models.Model):
+    """Through table for LabTestPanel ↔ LabTestDefinition M2M with ordering."""
 
     panel: models.ForeignKey = models.ForeignKey(
-        TestPanel, on_delete=models.CASCADE, related_name="memberships",
+        LabTestPanel, on_delete=models.CASCADE, related_name="memberships",
     )
-    test: models.ForeignKey = models.ForeignKey(
-        TestDefinition, on_delete=models.CASCADE, related_name="panel_memberships",
+    lab_test: models.ForeignKey = models.ForeignKey(
+        LabTestDefinition, on_delete=models.CASCADE, related_name="panel_memberships",
     )
     sort_order: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(default=0)
     is_optional: models.BooleanField = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["sort_order"]
-        unique_together = [("panel", "test")]
+        unique_together = [("panel", "lab_test")]
         verbose_name = "Panel Membership"
 
     def __str__(self) -> str:
-        return f"{self.panel.code} → {self.test.code}"
+        return f"{self.panel.code} → {self.lab_test.code}"
+
+
+class LabTestSampleMembership(models.Model):
+    """Through table for SampleType ↔ LabTestDefinition M2M."""
+    lab_test = models.ForeignKey(LabTestDefinition, on_delete=models.CASCADE,
+                             related_name="sample_requirements")
+    sample_type = models.ForeignKey(SampleType, on_delete=models.PROTECT,
+                                    related_name="test_requirements")
+    is_preferred = models.BooleanField(default=True)
+    minimum_volume_ml = models.DecimalField(  # override at labtest level if needed
+        max_digits=6, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = [("lab_test", "sample_type")]
 
 
 class ReferenceRange(TimeStampedModel):
@@ -336,12 +323,16 @@ class ReferenceRange(TimeStampedModel):
     """
 
     class GenderChoices(models.TextChoices):
+        """
+        Biological sex with clinical applicability.
+        Not to be confused with apps.core.choices.FHIRGender
+        """
         ANY = "any", "Any / Not specified"
         MALE = "male", "Male"
         FEMALE = "female", "Female"
 
     test: models.ForeignKey = models.ForeignKey(
-        TestDefinition, on_delete=models.CASCADE, related_name="reference_ranges",
+        LabTestDefinition, on_delete=models.CASCADE, related_name="reference_ranges",
     )
 
     # Population selectors
@@ -443,11 +434,11 @@ class ReferenceRange(TimeStampedModel):
         return "N"
 
 
-class TestMethod(TimeStampedModel):
-    """Analytical method used to perform a test (per instrument/analyser)."""
+class LabTestMethod(TimeStampedModel):
+    """Analytical method used to perform a lab test (per instrument/analyser)."""
 
     test: models.ForeignKey = models.ForeignKey(
-        TestDefinition, on_delete=models.CASCADE, related_name="methods",
+        LabTestDefinition, on_delete=models.CASCADE, related_name="methods",
     )
     name: models.CharField = models.CharField(max_length=200)
     instrument: models.CharField = models.CharField(max_length=200, blank=True)
@@ -469,18 +460,18 @@ class TestMethod(TimeStampedModel):
 
     class Meta:
         ordering = ["-is_default", "name"]
-        verbose_name = "Test Method"
-        verbose_name_plural = "Test Methods"
+        verbose_name = "Lab Test Method"
+        verbose_name_plural = "Lab Test Methods"
 
     def __str__(self) -> str:
         return f"{self.test.code} / {self.name}"
 
 
 # ── Auditlog registration ─────────────────────────────────────────────────────
-auditlog.register(TestCategory)
-auditlog.register(TestPanel)
-auditlog.register(TestDefinition)
+auditlog.register(LabTestCategory)
+auditlog.register(LabTestPanel)
+auditlog.register(LabTestDefinition)
 auditlog.register(ReferenceRange)
-auditlog.register(TestMethod)
-auditlog.register(Unit)
+auditlog.register(LabTestMethod)
+auditlog.register(MeasurementUnit)
 auditlog.register(SampleType)

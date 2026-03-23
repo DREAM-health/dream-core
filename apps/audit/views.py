@@ -1,7 +1,7 @@
 """
 apps/audit/views.py
 
-Read-only API over django-auditlog's LogEntry model.
+Read-only API over AuditEvent (proxy over django-auditlog's LogEntry).
 
 Endpoints:
   GET /api/v1/audit/logs/                  — list all log entries (paginated)
@@ -18,10 +18,17 @@ django-auditlog stores:
   - changes     (JSON: field -> [old, new])
   - timestamp
   - remote_addr (IP address)
+
+Migration from raw LogEntry to AuditEvent:
+  The only change from the previous implementation is that we now import
+  AuditEvent instead of LogEntry. The database query is identical — the proxy
+  shares the underlying table. The benefit is that view code can now use the
+  manager helpers (for_object, for_actor, etc.) and the computed properties
+  (action_display, resource_label, actor_display) without duplicating logic.
 """
+
 from typing import Any
 
-from auditlog.models import LogEntry  # type: ignore[import-untyped]
 from django.contrib.contenttypes.models import ContentType
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import serializers, status
@@ -32,11 +39,12 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
 from apps.accounts.permissions import IsAuditor
+from apps.audit.models import AuditEvent
 
 
 # ── Serializer ────────────────────────────────────────────────────────────────
 
-class LogEntrySerializer(serializers.Serializer[LogEntry]):
+class AuditEventSerializer(serializers.Serializer[AuditEvent]):
     id = serializers.IntegerField(read_only=True)
     timestamp = serializers.DateTimeField(read_only=True)
 
@@ -51,24 +59,24 @@ class LogEntrySerializer(serializers.Serializer[LogEntry]):
     object_repr = serializers.CharField(read_only=True)
 
     changes = serializers.JSONField(read_only=True)
+    changed_fields = serializers.SerializerMethodField()
     remote_addr = serializers.IPAddressField(read_only=True, allow_null=True)
     additional_data = serializers.JSONField(read_only=True, allow_null=True)
 
-    def get_actor_id(self, obj: LogEntry) -> str | None:
+    def get_actor_id(self, obj: AuditEvent) -> str | None:
         return str(obj.actor_id) if obj.actor_id else None
 
-    def get_actor_email(self, obj: LogEntry) -> str | None:
-        if obj.actor:
-            return str(getattr(obj.actor, "email", str(obj.actor)))
-        return None
+    def get_actor_email(self, obj: AuditEvent) -> str | None:
+        return obj.actor_display if obj.actor_id else None
 
-    def get_action_display(self, obj: LogEntry) -> str:
-        return {0: "CREATE", 1: "UPDATE", 2: "DELETE", 3: "ACCESS"}.get(
-            obj.action, "UNKNOWN"
-        )
+    def get_action_display(self, obj: AuditEvent) -> str:
+        return obj.action_display
 
-    def get_content_type(self, obj: LogEntry) -> str:
-        return f"{obj.content_type.app_label}.{obj.content_type.model}"
+    def get_content_type(self, obj: AuditEvent) -> str:
+        return obj.resource_label
+    
+    def get_changed_fields(self, obj: AuditEvent) -> list[str]:
+        return obj.changed_fields
 
 
 # ── Pagination ────────────────────────────────────────────────────────────────
@@ -89,13 +97,13 @@ class AuditLogListView(APIView):
     List audit log entries with filtering.
 
     Query params:
-      actor_id   — filter by user UUID
-      action     — 0=create, 1=update, 2=delete
-      app_label  — filter by Django app label
-      model      — filter by model name
-      object_pk  — filter by specific object PK
-      date_from  — ISO 8601 datetime
-      date_to    — ISO 8601 datetime
+      actor_id   — UUID of the user who performed the action
+      action     — 0=CREATE, 1=UPDATE, 2=DELETE, 3=ACCESS
+      app_label  — Django app label (e.g. "patients")
+      model      — model name, case-insensitive (e.g. "patient")
+      object_pk  — PK of the specific object
+      date_from  — ISO 8601 datetime (inclusive lower bound)
+      date_to    — ISO 8601 datetime (inclusive upper bound)
     """
 
     permission_classes = [IsAuthenticated, IsAuditor]
@@ -114,7 +122,7 @@ class AuditLogListView(APIView):
     )
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         qs = (
-            LogEntry.objects
+            AuditEvent.objects
             .select_related("actor", "content_type")
             .order_by("-timestamp")
         )
@@ -143,24 +151,24 @@ class AuditLogListView(APIView):
 
         paginator = AuditLogPagination()
         page = paginator.paginate_queryset(qs, request)
-        serializer = LogEntrySerializer(page, many=True)
+        serializer = AuditEventSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
 @extend_schema(tags=["audit"])
 class AuditLogDetailView(APIView):
-    """GET /api/v1/audit/logs/{id}/ — retrieve a single log entry."""
+    """GET /api/v1/audit/logs/{id}/ — retrieve a single audit event."""
 
     permission_classes = [IsAuthenticated, IsAuditor]
 
-    @extend_schema(summary="Retrieve audit log entry")
+    @extend_schema(summary="Retrieve audit audit event")
     def get(self, request: Request, pk: int, *args: Any, **kwargs: Any) -> Response:
         from django.http import Http404
         try:
-            entry = LogEntry.objects.select_related("actor", "content_type").get(pk=pk)
-        except LogEntry.DoesNotExist:
+            entry = AuditEvent.objects.select_related("actor", "content_type").get(pk=pk)
+        except AuditEvent.DoesNotExist:
             raise Http404
-        return Response(LogEntrySerializer(entry).data)
+        return Response(AuditEventSerializer(entry).data)
 
 
 @extend_schema(tags=["audit"])
@@ -191,10 +199,10 @@ class ObjectAuditLogView(APIView):
             raise Http404
 
         entries = (
-            LogEntry.objects
+            AuditEvent.objects
             .filter(content_type=ct, object_pk=object_pk)
             .select_related("actor")
             .order_by("-timestamp")
         )
-        serializer = LogEntrySerializer(entries, many=True)
+        serializer = AuditEventSerializer(entries, many=True)
         return Response(serializer.data)

@@ -6,14 +6,14 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from apps.catalog.models import ReferenceRange, TestDefinition, TestPanel, Unit
+from apps.catalog.models import ReferenceRange, LabTestDefinition, LabTestPanel, MeasurementUnit
 
 
 # ── Unit ──────────────────────────────────────────────────────────────────────
 
-class UnitSerializer(serializers.ModelSerializer[Unit]):
+class UnitSerializer(serializers.ModelSerializer[MeasurementUnit]):
     class Meta:
-        model = Unit
+        model = MeasurementUnit
         fields = ["id", "name", "symbol", "ucum_code", "description", "created_at"]
         read_only_fields = ["id", "created_at"]
 
@@ -69,12 +69,12 @@ class ReferenceRangeWriteSerializer(serializers.ModelSerializer[ReferenceRange])
 
 # ── TestDefinition ────────────────────────────────────────────────────────────
 
-class TestDefinitionListSerializer(serializers.ModelSerializer[TestDefinition]):
+class LabTestDefinitionListSerializer(serializers.ModelSerializer[LabTestDefinition]):
     unit_symbol = serializers.CharField(source="unit.symbol", read_only=True, default=None)
     panel_name = serializers.CharField(source="panel.name", read_only=True, default=None)
 
     class Meta:
-        model = TestDefinition
+        model = LabTestDefinition
         fields = [
             "id", "code", "name", "abbreviation", "loinc_code",
             "result_type", "unit_symbol", "panel_name",
@@ -83,21 +83,21 @@ class TestDefinitionListSerializer(serializers.ModelSerializer[TestDefinition]):
         read_only_fields = fields
 
 
-class TestDefinitionDetailSerializer(serializers.ModelSerializer[TestDefinition]):
+class LabTestDefinitionDetailSerializer(serializers.ModelSerializer[LabTestDefinition]):
     unit = UnitSerializer(read_only=True)
     reference_ranges = ReferenceRangeSerializer(many=True, read_only=True)
     panel_name = serializers.CharField(source="panel.name", read_only=True, default=None)
 
     class Meta:
-        model = TestDefinition
+        model = LabTestDefinition
         fields = [
             "id", "code", "name", "full_name", "abbreviation",
             "description", "loinc_code", "snomed_code",
+            "container_type", "minimum_volume_ml",
             "result_type", "unit", "decimal_places",
-            "specimen_type", "container_type", "minimum_volume_ml",
             "turnaround_hours", "method", "instrument",
-            "price", "allowed_values",
             "requires_validation", "reportable", "is_active", "sort_order",
+            "price", "allowed_values",
             "panel", "panel_name",
             "reference_ranges",
             "created_at", "updated_at",
@@ -105,16 +105,16 @@ class TestDefinitionDetailSerializer(serializers.ModelSerializer[TestDefinition]
         read_only_fields = ["id", "panel_name", "created_at", "updated_at"]
 
 
-class TestDefinitionWriteSerializer(serializers.ModelSerializer[TestDefinition]):
+class LabTestDefinitionWriteSerializer(serializers.ModelSerializer[LabTestDefinition]):
     reference_ranges = ReferenceRangeWriteSerializer(many=True, required=False)
 
     class Meta:
-        model = TestDefinition
+        model = LabTestDefinition
         fields = [
             "code", "name", "full_name", "abbreviation",
             "description", "loinc_code", "snomed_code",
             "result_type", "unit", "decimal_places",
-            "specimen_type", "container_type", "minimum_volume_ml",
+            "container_type", "minimum_volume_ml",
             "turnaround_hours", "method", "instrument",
             "price", "allowed_values",
             "requires_validation", "reportable", "is_active", "sort_order",
@@ -131,7 +131,7 @@ class TestDefinitionWriteSerializer(serializers.ModelSerializer[TestDefinition])
 
     def _sync_reference_ranges(
         self,
-        test: TestDefinition,
+        test: LabTestDefinition,
         ranges_data: list[dict[str, Any]],
     ) -> None:
         """Replace reference ranges on update."""
@@ -139,13 +139,13 @@ class TestDefinitionWriteSerializer(serializers.ModelSerializer[TestDefinition])
         for rr_data in ranges_data:
             ReferenceRange.objects.create(test=test, **rr_data)
 
-    def create(self, validated_data: dict[str, Any]) -> TestDefinition:
+    def create(self, validated_data: dict[str, Any]) -> LabTestDefinition:
         ranges_data: list[dict[str, Any]] = validated_data.pop("reference_ranges", [])
-        test = TestDefinition.objects.create(**validated_data)
+        test = LabTestDefinition.objects.create(**validated_data)
         self._sync_reference_ranges(test, ranges_data)
         return test
 
-    def update(self, instance: TestDefinition, validated_data: dict[str, Any]) -> TestDefinition:
+    def update(self, instance: LabTestDefinition, validated_data: dict[str, Any]) -> LabTestDefinition:
         ranges_data: list[dict[str, Any]] | None = validated_data.pop("reference_ranges", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -155,13 +155,13 @@ class TestDefinitionWriteSerializer(serializers.ModelSerializer[TestDefinition])
         return instance
 
 
-# ── TestPanel ─────────────────────────────────────────────────────────────────
+# ── LabTestPanel ─────────────────────────────────────────────────────────────────
 
-class TestPanelListSerializer(serializers.ModelSerializer[TestPanel]):
+class LabTestPanelListSerializer(serializers.ModelSerializer[LabTestPanel]):
     test_count = serializers.IntegerField(read_only=True)
 
     class Meta:
-        model = TestPanel
+        model = LabTestPanel
         fields = [
             "id",
             "category",
@@ -175,11 +175,11 @@ class TestPanelListSerializer(serializers.ModelSerializer[TestPanel]):
         read_only_fields = fields
 
 
-class TestPanelDetailSerializer(serializers.ModelSerializer[TestPanel]):
-    tests = TestDefinitionListSerializer(many=True, read_only=True)
+class LabTestPanelDetailSerializer(serializers.ModelSerializer[LabTestPanel]):
+    tests = LabTestDefinitionListSerializer(many=True, read_only=True)
 
     class Meta:
-        model = TestPanel
+        model = LabTestPanel
         fields = [
             "id",
             "category",
@@ -194,9 +194,9 @@ class TestPanelDetailSerializer(serializers.ModelSerializer[TestPanel]):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
-class TestPanelWriteSerializer(serializers.ModelSerializer[TestPanel]):
+class LabTestPanelWriteSerializer(serializers.ModelSerializer[LabTestPanel]):
     class Meta:
-        model = TestPanel
+        model = LabTestPanel
         fields = [
             "category",
             "name",

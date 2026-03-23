@@ -1,7 +1,7 @@
 """
 apps/catalog/views.py
 
-Test Catalog endpoints:
+Lab Test Catalog endpoints:
 
 Units:
   GET/POST   /api/v1/catalog/units/
@@ -12,7 +12,7 @@ Panels:
   GET/PUT/PATCH/DELETE  /api/v1/catalog/panels/{id}/
   DELETE /api/v1/catalog/panels/{id}/  → soft-delete
 
-Tests:
+LabTests:
   GET/POST   /api/v1/catalog/tests/
   GET/PUT/PATCH/DELETE  /api/v1/catalog/tests/{id}/
   POST /api/v1/catalog/tests/interpret/  → result interpretation
@@ -29,15 +29,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import HasAnyRole, IsAdmin
-from apps.catalog.models import ReferenceRange, TestDefinition, TestPanel, Unit
+from apps.catalog.models import ReferenceRange, LabTestDefinition, LabTestPanel, MeasurementUnit
 from apps.catalog.serializers import (
     ResultInterpretationSerializer,
-    TestDefinitionDetailSerializer,
-    TestDefinitionListSerializer,
-    TestDefinitionWriteSerializer,
-    TestPanelDetailSerializer,
-    TestPanelListSerializer,
-    TestPanelWriteSerializer,
+    LabTestDefinitionDetailSerializer,
+    LabTestDefinitionListSerializer,
+    LabTestDefinitionWriteSerializer,
+    LabTestPanelDetailSerializer,
+    LabTestPanelListSerializer,
+    LabTestPanelWriteSerializer,
     UnitSerializer,
 )
 
@@ -57,8 +57,8 @@ _WRITE_ROLES = HasAnyRole("SUPERADMIN", "ADMIN", "LAB_MANAGER")
     get=extend_schema(summary="List measurement units"),
     post=extend_schema(summary="Create measurement unit"),
 )
-class UnitListCreateView(generics.ListCreateAPIView[Unit]):
-    queryset = Unit.objects.all()
+class UnitListCreateView(generics.ListCreateAPIView[MeasurementUnit]):
+    queryset = MeasurementUnit.objects.all()
     serializer_class = UnitSerializer
     search_fields = ["name", "symbol", "ucum_code"]
     ordering_fields = ["symbol", "name"]
@@ -76,8 +76,8 @@ class UnitListCreateView(generics.ListCreateAPIView[Unit]):
     patch=extend_schema(summary="Partial update unit"),
     delete=extend_schema(summary="Delete unit"),
 )
-class UnitDetailView(generics.RetrieveUpdateDestroyAPIView[Unit]):
-    queryset = Unit.objects.all()
+class UnitDetailView(generics.RetrieveUpdateDestroyAPIView[MeasurementUnit]):
+    queryset = MeasurementUnit.objects.all()
     serializer_class = UnitSerializer
 
     def get_permissions(self) -> list[Any]:
@@ -86,14 +86,14 @@ class UnitDetailView(generics.RetrieveUpdateDestroyAPIView[Unit]):
         return [IsAuthenticated(), _WRITE_ROLES]
 
 
-# ── Test Panels ───────────────────────────────────────────────────────────────
+# ── LabTestPanels ───────────────────────────────────────────────────────────────
 
 @extend_schema(tags=["catalog"])
 @extend_schema_view(
     get=extend_schema(summary="List test panels"),
     post=extend_schema(summary="Create test panel"),
 )
-class TestPanelListCreateView(generics.ListCreateAPIView[TestPanel]):
+class LabTestPanelListCreateView(generics.ListCreateAPIView[LabTestPanel]):
     search_fields = ["code", "name", "category", "loinc_code"]
     filterset_fields = ["category", "is_active",]
     ordering_fields = ["name", "category"]
@@ -103,26 +103,26 @@ class TestPanelListCreateView(generics.ListCreateAPIView[TestPanel]):
             return [IsAuthenticated(), _READ_ROLES]
         return [IsAuthenticated(), _WRITE_ROLES]
 
-    def get_queryset(self) -> QuerySet[TestPanel]:
+    def get_queryset(self) -> QuerySet[LabTestPanel]:
         return (
-            TestPanel.objects
+            LabTestPanel.objects
             .annotate(test_count=Count("tests"))
             .prefetch_related("tests")
         )
 
     def get_serializer_class(self) -> Any:
         if self.request.method == "POST":
-            return TestPanelWriteSerializer
-        return TestPanelListSerializer
+            return LabTestPanelWriteSerializer
+        return LabTestPanelListSerializer
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         print(request.data)
-        serializer = TestPanelWriteSerializer(data=request.data, context={"request": request})
+        serializer = LabTestPanelWriteSerializer(data=request.data, context={"request": request})
         print(serializer)
         serializer.is_valid(raise_exception=True)
-        panel: TestPanel = serializer.save()
-        output = TestPanelDetailSerializer(
-            TestPanel.objects.annotate(test_count=Count("tests")).get(pk=panel.pk)
+        panel: LabTestPanel = serializer.save()
+        output = LabTestPanelDetailSerializer(
+            LabTestPanel.objects.annotate(test_count=Count("tests")).get(pk=panel.pk)
         )
         return Response(output.data, status=status.HTTP_201_CREATED)
 
@@ -134,23 +134,23 @@ class TestPanelListCreateView(generics.ListCreateAPIView[TestPanel]):
     patch=extend_schema(summary="Partial update test panel"),
     delete=extend_schema(summary="Soft-delete test panel"),
 )
-class TestPanelDetailView(generics.RetrieveUpdateDestroyAPIView[TestPanel]):
+class LabTestPanelDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestPanel]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
             return [IsAuthenticated(), _READ_ROLES]
         return [IsAuthenticated(), _WRITE_ROLES]
 
-    def get_queryset(self) -> QuerySet[TestPanel]:
-        return TestPanel.objects.prefetch_related("tests__unit", "tests__reference_ranges")
+    def get_queryset(self) -> QuerySet[LabTestPanel]:
+        return LabTestPanel.objects.prefetch_related("tests__unit", "tests__reference_ranges")
 
     def get_serializer_class(self) -> Any:
         if self.request.method in ("PUT", "PATCH"):
-            return TestPanelWriteSerializer
-        return TestPanelDetailSerializer
+            return LabTestPanelWriteSerializer
+        return LabTestPanelDetailSerializer
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        panel: TestPanel = self.get_object()
+        panel: LabTestPanel = self.get_object()
         panel.delete(deleted_by=request.user, reason="Catalog soft-delete via API")
         return Response(
             {"detail": f"Panel '{panel.code}' deactivated."},
@@ -158,17 +158,17 @@ class TestPanelDetailView(generics.RetrieveUpdateDestroyAPIView[TestPanel]):
         )
 
 
-# ── Test Definitions ──────────────────────────────────────────────────────────
+# ── LabTestDefinitions ──────────────────────────────────────────────────────────
 
 @extend_schema(tags=["catalog"])
 @extend_schema_view(
     get=extend_schema(summary="List test definitions"),
     post=extend_schema(summary="Create test definition"),
 )
-class TestDefinitionListCreateView(generics.ListCreateAPIView[TestDefinition]):
+class LabTestDefinitionListCreateView(generics.ListCreateAPIView[LabTestDefinition]):
     search_fields = ["code", "name", "abbreviation", "loinc_code", "snomed_code"]
     filterset_fields = [
-        "panel", "result_type", "specimen_type",
+        "panel", "result_type",
         "is_active", "requires_validation", "reportable",
     ]
     ordering_fields = ["sort_order", "name", "code", "turnaround_hours"]
@@ -178,26 +178,26 @@ class TestDefinitionListCreateView(generics.ListCreateAPIView[TestDefinition]):
             return [IsAuthenticated(), _READ_ROLES]
         return [IsAuthenticated(), _WRITE_ROLES]
 
-    def get_queryset(self) -> QuerySet[TestDefinition]:
+    def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
-            TestDefinition.objects
+            LabTestDefinition.objects
             .select_related("unit", "panel")
             .prefetch_related("reference_ranges")
         )
 
     def get_serializer_class(self) -> Any:
         if self.request.method == "POST":
-            return TestDefinitionWriteSerializer
-        return TestDefinitionListSerializer
+            return LabTestDefinitionWriteSerializer
+        return LabTestDefinitionListSerializer
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        serializer = TestDefinitionWriteSerializer(
+        serializer = LabTestDefinitionWriteSerializer(
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        test: TestDefinition = serializer.save()
-        output = TestDefinitionDetailSerializer(
-            TestDefinition.objects
+        test: LabTestDefinition = serializer.save()
+        output = LabTestDefinitionDetailSerializer(
+            LabTestDefinition.objects
             .select_related("unit", "panel")
             .prefetch_related("reference_ranges")
             .get(pk=test.pk)
@@ -212,35 +212,35 @@ class TestDefinitionListCreateView(generics.ListCreateAPIView[TestDefinition]):
     patch=extend_schema(summary="Partial update test definition"),
     delete=extend_schema(summary="Soft-delete test definition"),
 )
-class TestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[TestDefinition]):
+class LabTestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestDefinition]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
             return [IsAuthenticated(), _READ_ROLES]
         return [IsAuthenticated(), _WRITE_ROLES]
 
-    def get_queryset(self) -> QuerySet[TestDefinition]:
+    def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
-            TestDefinition.objects
+            LabTestDefinition.objects
             .select_related("unit", "panel")
             .prefetch_related("reference_ranges")
         )
 
     def get_serializer_class(self) -> Any:
         if self.request.method in ("PUT", "PATCH"):
-            return TestDefinitionWriteSerializer
-        return TestDefinitionDetailSerializer
+            return LabTestDefinitionWriteSerializer
+        return LabTestDefinitionDetailSerializer
 
     def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         partial: bool = kwargs.pop("partial", False)
         test = self.get_object()
-        serializer = TestDefinitionWriteSerializer(
+        serializer = LabTestDefinitionWriteSerializer(
             test, data=request.data, partial=partial, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
         updated = serializer.save()
-        output = TestDefinitionDetailSerializer(
-            TestDefinition.objects
+        output = LabTestDefinitionDetailSerializer(
+            LabTestDefinition.objects
             .select_related("unit", "panel")
             .prefetch_related("reference_ranges")
             .get(pk=updated.pk)
@@ -248,7 +248,7 @@ class TestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[TestDefinit
         return Response(output.data)
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        test: TestDefinition = self.get_object()
+        test: LabTestDefinition = self.get_object()
         test.delete(deleted_by=request.user, reason="Catalog soft-delete via API")
         return Response(
             {"detail": f"Test '{test.code}' deactivated."},
@@ -299,14 +299,14 @@ class ResultInterpretationView(APIView):
         sex: str = serializer.validated_data.get("patient_sex", "any")
 
         try:
-            test = TestDefinition.objects.get(code=test_code, is_active=True)
-        except TestDefinition.DoesNotExist:
+            test = LabTestDefinition.objects.get(code=test_code, is_active=True)
+        except LabTestDefinition.DoesNotExist:
             return Response(
                 {"detail": f"Test '{test_code}' not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if test.result_type != TestDefinition.ResultType.NUMERIC:
+        if test.result_type != LabTestDefinition.ResultTypeChoices.NUMERIC:
             return Response(
                 {"detail": "Interpretation is only available for numeric result types."},
                 status=status.HTTP_400_BAD_REQUEST,

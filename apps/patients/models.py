@@ -16,21 +16,25 @@ Design:
 from django.db import models
 from auditlog.registry import auditlog
 
+from apps.core.hard_delete import HardDeleteGuard
 from apps.core.models import SoftDeleteModel
+from apps.core.choices import FHIRGender
 
-
-class Patient(SoftDeleteModel):
+class Patient(HardDeleteGuard, SoftDeleteModel):
     """
     Master Patient Index record.
     Maps to FHIR R4 Patient resource.
-    """
 
-    class GenderChoices(models.TextChoices):
-        # see more: https://www.hl7.org/fhir/patient-definitions.html#Patient.gender
-        MALE = "male", "Male"
-        FEMALE = "female", "Female"
-        OTHER = "other", "Other"
-        UNKNOWN = "unknown", "Unknown"
+    Hard deletion requires:
+      - `patients.hard_delete_patient` Django permission on the acting user
+      - An authorisation_token of at least 20 characters
+ 
+    Example:
+        patient.hard_delete(
+            authorised_by=request.user,
+            authorisation_token="LGPD art.18 erasure — ticket #DPO-2024-0042",
+        )
+    """
 
     # ── Demographics ──────────────────────────────────────────────────────────
     family_name: models.CharField = models.CharField(
@@ -44,8 +48,8 @@ class Patient(SoftDeleteModel):
     birth_date: models.DateField = models.DateField(db_index=True)
     gender: models.CharField = models.CharField(
         max_length=10,
-        choices=GenderChoices.choices,
-        default=GenderChoices.UNKNOWN,
+        choices=FHIRGender.choices,
+        default=FHIRGender.UNKNOWN,
     )
     deceased_date: models.DateField = models.DateField(
         null=True, blank=True,
@@ -96,6 +100,11 @@ class Patient(SoftDeleteModel):
     @property
     def full_name(self) -> str:
         return f"{self.given_names} {self.family_name}".strip()
+
+    # TODO: override in Patient.delete() that cascades the soft-delete to related objects.
+    def delete(self, using = None, keep_parents = False, deleted_by = None, reason = ""):
+        return super().delete(using, keep_parents, deleted_by, reason)
+
 
 
 class PatientIdentifier(models.Model):
