@@ -4,7 +4,7 @@ tests/accounts/factories.py — factory_boy factories for accounts.
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.accounts.models import Role, User
+from dream_core.accounts.models import Role, User
 
 
 class RoleFactory(DjangoModelFactory):

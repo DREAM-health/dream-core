@@ -11,7 +11,7 @@ These tests verify the core compliance property:
 import pytest
 from django.utils import timezone
 
-from apps.patients.models import Patient
+from dream_core.patients.models import Patient
 from tests.patients.factories import PatientFactory
 
 

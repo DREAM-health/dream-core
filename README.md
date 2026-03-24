@@ -12,7 +12,7 @@ dream-core/
 │   │   └── production.py       # Production (PostgreSQL, strict security)
 │   └── urls.py                 # Root URL router
 │
-├── apps/
+├── dream_core/
 │   ├── core/                   # Shared abstract base models
 │   │   └── models.py           # UUIDModel, TimeStampedModel, AuditedModel, SoftDeleteModel
 │   │
@@ -86,7 +86,7 @@ ReDoc: `http://localhost:8000/api/redoc/`
 export DJANGO_SETTINGS_MODULE=config.settings.development
 
 python manage.py migrate
-python manage.py loaddata apps/accounts/fixtures/initial_roles.json
+python manage.py loaddata dream_core/accounts/fixtures/initial_roles.json
 python manage.py seed_catalog
 python manage.py createsuperuser
 python manage.py runserver
@@ -119,7 +119,7 @@ Coverage threshold is enforced at **80%** globally. Compliance-critical paths
 ## Type Checking
 
 ```bash
-mypy apps/
+mypy dream_core/
 ```
 
 mypy runs in **strict mode**. All code must be fully typed.
@@ -130,8 +130,8 @@ CI blocks merges with mypy errors.
 ## Linting
 
 ```bash
-ruff check apps/ tests/
-ruff format apps/ tests/
+ruff check dream_core/ tests/
+ruff format dream_core/ tests/
 ```
 
 ---

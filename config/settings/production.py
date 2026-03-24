@@ -59,6 +59,6 @@ LOGGING: dict = {  # type: ignore[type-arg]
     "root": {"handlers": ["console"], "level": "WARNING"},
     "loggers": {
         "django.security": {"handlers": ["console"], "level": "ERROR"},
-        "apps": {"handlers": ["console"], "level": "WARNING"},
+        "dream_core": {"handlers": ["console"], "level": "WARNING"},
     },
 }

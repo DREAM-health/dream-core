@@ -6,7 +6,7 @@ import datetime
 import factory
 from factory.django import DjangoModelFactory
 
-from apps.patients.models import Patient, PatientContact, PatientIdentifier
+from dream_core.patients.models import Patient, PatientContact, PatientIdentifier
 
 
 class PatientFactory(DjangoModelFactory):

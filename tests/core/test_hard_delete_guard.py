@@ -14,14 +14,14 @@ Coverage targets (all must be >= 90%):
 import pytest
 from unittest.mock import MagicMock, patch
 
-from apps.accounts.models import User, Role
-from apps.core.hard_delete import (
+from dream_core.accounts.models import User, Role
+from dream_core.core.hard_delete import (
     CanHardDelete,
     HardDeleteGuard,
     HardDeleteNotAuthorised,
     MIN_TOKEN_LENGTH,
 )
-from apps.patients.models import Patient
+from dream_core.patients.models import Patient
 from tests.accounts.factories import UserFactory
 from tests.patients.factories import PatientFactory
 
@@ -192,7 +192,7 @@ class TestHardDeleteAuditLog:
     def test_python_logger_is_called_on_success(
         self, patient: Patient, authorised_user: User
     ) -> None:
-        with patch("apps.core.hard_delete.logger") as mock_logger:
+        with patch("dream_core.core.hard_delete.logger") as mock_logger:
             patient.hard_delete(
                 authorised_by=authorised_user,
                 authorisation_token=VALID_TOKEN,
@@ -205,7 +205,7 @@ class TestHardDeleteAuditLog:
     def test_logger_includes_token_in_extra(
         self, patient: Patient, authorised_user: User
     ) -> None:
-        with patch("apps.core.hard_delete.logger") as mock_logger:
+        with patch("dream_core.core.hard_delete.logger") as mock_logger:
             patient.hard_delete(
                 authorised_by=authorised_user,
                 authorisation_token=VALID_TOKEN,
@@ -242,7 +242,7 @@ class TestHardDeleteAuditLog:
     def test_logger_is_not_called_when_authorisation_fails(
         self, patient: Patient, unauthorised_user: User
     ) -> None:
-        with patch("apps.core.hard_delete.logger") as mock_logger:
+        with patch("dream_core.core.hard_delete.logger") as mock_logger:
             with pytest.raises(HardDeleteNotAuthorised):
                 patient.hard_delete(
                     authorised_by=unauthorised_user,
@@ -329,7 +329,7 @@ class TestNoHardDeleteOnPlainSoftDeleteModel:
     """
 
     def test_soft_delete_model_has_no_hard_delete(self) -> None:
-        from apps.core.models import SoftDeleteModel
+        from dream_core.core.models import SoftDeleteModel
         assert not hasattr(SoftDeleteModel, "hard_delete"), (
             "SoftDeleteModel must NOT define hard_delete(). "
             "Use HardDeleteGuard mixin to opt in."

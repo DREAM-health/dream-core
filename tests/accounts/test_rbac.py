@@ -7,7 +7,7 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User
+from dream_core.accounts.models import User
 from tests.accounts.factories import RoleFactory, UserFactory
 
 from rest_framework.request import Request
@@ -109,14 +109,14 @@ class TestUserRoleAssignment:
         assert user.has_role("LAB_MANAGER") is False
 
     def test_superuser_bypasses_role_check(self, db: None) -> None:
-        from apps.accounts.permissions import HasRole
+        from dream_core.accounts.permissions import HasRole
         from unittest.mock import MagicMock
 
         request = MagicMock(spec=Request)
         request.user = UserFactory(is_superuser=True)
         view = MagicMock()
 
-        perm = HasRole("ANY_ROLE")
+        perm = HasRole("ANY_ROLE")()
         assert perm.has_permission(request, view) is True
 
     def test_multiple_roles_aggregate_permissions(self, db: None, roles: dict) -> None:

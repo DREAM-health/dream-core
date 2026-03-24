@@ -35,11 +35,11 @@ THIRD_PARTY_APPS: list[str] = [
 ]
 
 LOCAL_APPS: list[str] = [
-    "apps.accounts",
-    "apps.audit",
-    "apps.catalog",
-    "apps.core",
-    "apps.patients",
+    "dream_core.accounts",
+    "dream_core.audit",
+    "dream_core.catalog",
+    "dream_core.core",
+    "dream_core.patients",
 ]
 
 INSTALLED_APPS: list[str] = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

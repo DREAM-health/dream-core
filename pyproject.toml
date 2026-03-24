@@ -91,4 +91,4 @@ DJANGO_SETTINGS_MODULE = "config.settings.testing"
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "--migrations --cov=apps --cov-report=term-missing --cov-fail-under=80"
+addopts = "--migrations --cov=dream_core --cov-report=term-missing --cov-fail-under=80"

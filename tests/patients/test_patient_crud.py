@@ -14,7 +14,7 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.patients.models import Patient, PatientIdentifier
+from dream_core.patients.models import Patient, PatientIdentifier
 from tests.patients.factories import (
     PatientContactFactory,
     PatientFactory,
@@ -126,7 +126,7 @@ class TestPatientCreate:
         payload = self._payload(
             email="id@test.com",
             identifiers=[
-                {"use": "official", "system": "https://dream_core.local/cpf", "value": "12345678901"},
+                {"use": "official", "system": "https://dream-core.local/cpf", "value": "12345678901"},
             ],
         )
         resp = clinician_client.post(LIST_URL, payload, format="json")
@@ -360,7 +360,7 @@ class TestFHIRPatient:
             "identifier": [
                 {
                     "use": "official",
-                    "system": "https://dream_core.local/cpf",
+                    "system": "https://dream-core.local/cpf",
                     "value": "98765432100",
                 }
             ],
@@ -415,7 +415,7 @@ class TestFHIRPatient:
         resp = clinician_client.get(fhir_detail_url(patient.id))
         identifiers = resp.json()["identifier"]
         systems = [i["system"] for i in identifiers]
-        assert "https://dream_core.local/patient-id" in systems
+        assert "https://dream-core.local/patient-id" in systems
 
     def test_update_patient_via_fhir_put(self, clinician_client: APIClient) -> None:
         patient = PatientFactory(family_name="OldName")

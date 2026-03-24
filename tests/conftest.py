@@ -7,7 +7,7 @@ import pytest
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.accounts.models import Role, User
+from dream_core.accounts.models import Role, User
 
 
 # ── Roles fixture (creates the core system roles once per session) ─────────────

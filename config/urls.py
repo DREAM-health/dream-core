@@ -17,11 +17,11 @@ from django.contrib import admin
 from django.urls import path, include
 
 api_v1_patterns = [
-    path('auth/',     include('apps.accounts.urls.auth')),
-    path('accounts/', include('apps.accounts.urls.accounts')),
-    path('audit/',    include('apps.audit.urls')),
-    path('catalog/',  include('apps.catalog.urls')),
-    path('patients/', include('apps.patients.urls')),
+    path('auth/',     include('dream_core.accounts.urls.auth')),
+    path('accounts/', include('dream_core.accounts.urls.accounts')),
+    path('audit/',    include('dream_core.audit.urls')),
+    path('catalog/',  include('dream_core.catalog.urls')),
+    path('patients/', include('dream_core.patients.urls')),
 ]
 
 urlpatterns = [
