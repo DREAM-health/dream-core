@@ -29,7 +29,7 @@ class SampleTypeAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
     search_fields = ["code", "name"]
 
 
-class LabTestPanelMembership(admin.ModelAdmin):  # type: ignore[type-arg]
+class LabTestSampleMembershipInline(admin.ModelAdmin):  # type: ignore[type-arg]
     model = LabTestSampleMembership
     extra = 1
     fields = ["lab_test", "sample_type", "is_preferred", "minimum_volume_ml"]
