@@ -110,10 +110,29 @@ class TestSoftDeleteModel:
         hard_delete() is available but should be used sparingly.
         Verify it works as expected for the rare cases where it's needed.
         """
+        from tests.accounts.factories import UserFactory
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        user = UserFactory()
+        ct = ContentType.objects.get_for_model(Patient)
+        perm, _ = Permission.objects.get_or_create(
+            codename="hard_delete_patient",
+            content_type=ct,
+            defaults={"name": "Can hard delete Patient"},
+        )
+        user.user_permissions.add(perm)
+        # Refresh to clear permission cache
+        from dream_core.accounts.models import User
+        user = User.objects.get(pk=user.pk)
+
         patient = PatientFactory()
         pk = patient.id
 
-        patient.hard_delete()
+        patient.hard_delete(
+            authorised_by=user,
+            authorisation_token="LGPD erasure request #2024-0042 — DPO approved",
+        )
 
         assert not Patient.all_objects.filter(id=pk).exists()
 

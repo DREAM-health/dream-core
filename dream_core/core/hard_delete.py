@@ -216,11 +216,16 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
             If the caller is not authorised or the token is too short.
         """
         self._validate_hard_delete_authorisation(authorised_by, authorisation_token)
-        self._log_hard_delete(authorised_by, authorisation_token)
+        is_registered = self._log_hard_delete(authorised_by, authorisation_token)
 
-        # Delegate directly to Django's real Model.delete(), bypassing SoftDeleteModel
-        result = models.Model.delete(self, using=using, keep_parents=keep_parents)  # type: ignore[misc]
-        return result  # type: ignore[return-value]
+        try:
+            # Delegate directly to Django's real Model.delete(), bypassing SoftDeleteModel
+            result = models.Model.delete(self, using=using, keep_parents=keep_parents)  # type: ignore[misc]
+            return result  # type: ignore[return-value]
+        finally:
+            if is_registered:
+                from auditlog.registry import auditlog as auditlog_registry
+                auditlog_registry.register(self.__class__)
 
     # ── Private helpers ────────────────────────────────────────────────────────
 
@@ -282,7 +287,7 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
                 f"before hard deletion is possible."
             )
 
-    def _log_hard_delete(self, authorised_by: Any, authorisation_token: str) -> None:
+    def _log_hard_delete(self, authorised_by: Any, authorisation_token: str) -> bool:
         """
         Write a structured log entry and an auditlog LogEntry for this event.
 
@@ -317,13 +322,17 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
         # ── django-auditlog LogEntry ───────────────────────────────────────
         # We create the entry *before* the actual delete so the content_type
         # and pk are still resolvable.  auditlog uses action=2 for DELETE.
+        is_registered = False
         try:
             from auditlog.models import LogEntry  # type: ignore[import-untyped]
+            from auditlog.registry import auditlog as auditlog_registry
             from django.contrib.contenttypes.models import ContentType
 
             ct = ContentType.objects.get_for_model(self.__class__)
-            LogEntry.objects.log_create(  # type: ignore[attr-defined]
-                instance=self,
+            LogEntry.objects.create(  # type: ignore[attr-defined]
+                content_type=ct,
+                object_pk=str(self.pk),
+                object_repr=str(self),
                 action=LogEntry.Action.DELETE,
                 actor=authorised_by if getattr(authorised_by, "pk", None) else None,
                 additional_data={
@@ -332,6 +341,14 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
                     "actor_email": actor_email,
                 },
             )
+
+            # Temporarily unregister the model from auditlog to prevent duplicate
+            # DELETE entries (one from us with additional_data, one from auditlog
+            # middleware without it).
+            is_registered = self.__class__ in auditlog_registry._registry
+            if is_registered:
+                auditlog_registry.unregister(self.__class__)
+
         except Exception as exc:  # pragma: no cover
             # Logging failure must never block the authorised operation.
             logger.error(
@@ -342,7 +359,7 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
                 exc,
             )
             print("AUDITLOG EXCEPTION:", exc)
-            raise
+        return is_registered
 
 
 # ── DRF Permission class ───────────────────────────────────────────────────────
