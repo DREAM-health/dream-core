@@ -18,6 +18,9 @@ from tests.patients.factories import PatientFactory
 pytestmark = pytest.mark.django_db
 
 
+VALID_TOKEN = "LGPD art.18 erasure — ticket #DPO-2024-0042"
+
+
 class TestSoftDeleteModel:
     def test_delete_sets_deleted_at(self) -> None:
         patient = PatientFactory()
@@ -110,10 +113,19 @@ class TestSoftDeleteModel:
         hard_delete() is available but should be used sparingly.
         Verify it works as expected for the rare cases where it's needed.
         """
+        from dream_core.accounts.models import User
+
+        su = User.objects.create_superuser(
+            email="superuser@test.local",
+            password="Sup3rS3cur3!",
+            first_name="Super",
+            last_name="User",
+        )
+
         patient = PatientFactory()
         pk = patient.id
 
-        patient.hard_delete()
+        patient.hard_delete(authorised_by=su, authorisation_token=VALID_TOKEN)
 
         assert not Patient.all_objects.filter(id=pk).exists()
 

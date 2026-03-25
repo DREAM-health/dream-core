@@ -217,27 +217,28 @@ class TestHardDeleteAuditLog:
         self, patient: Patient, authorised_user: User
     ) -> None:
         from auditlog.models import LogEntry
-        from django.contrib.contenttypes.models import ContentType
-
-        pk_str = str(patient.pk)
-        ct = ContentType.objects.get_for_model(Patient)
+        from dream_core.audit.models import AuditEvent
 
         patient.hard_delete(
             authorised_by=authorised_user,
             authorisation_token=VALID_TOKEN,
         )
 
-        # The log entry should exist even after the record is gone
-        entry = LogEntry.objects.filter(
-            content_type=ct,
-            object_pk=pk_str,
-            action=LogEntry.Action.DELETE,
+        # The log entry should exist on HARD_DELETE after the record is gone
+        entry_hard_delete = LogEntry.objects.filter(
+            action=AuditEvent.Action.HARD_DELETE,
         ).order_by("-timestamp").first()
 
-        assert entry is not None
-        assert entry.additional_data is not None
-        assert entry.additional_data.get("hard_delete") is True
-        assert entry.additional_data.get("authorisation_token") == VALID_TOKEN
+        # The log should NOT exist on DELETE
+        entry_delete = LogEntry.objects.filter(
+            action=AuditEvent.Action.DELETE,
+        ).order_by("-timestamp").first()
+
+        assert entry_delete is None
+        assert entry_hard_delete is not None
+        assert entry_hard_delete.additional_data is not None
+        assert entry_hard_delete.additional_data.get("hard_delete") is True
+        assert entry_hard_delete.additional_data.get("authorisation_token") == VALID_TOKEN
 
     def test_logger_is_not_called_when_authorisation_fails(
         self, patient: Patient, unauthorised_user: User

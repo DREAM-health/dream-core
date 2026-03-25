@@ -12,12 +12,6 @@ from dream_core.accounts.models import Role, User
 
 # ── Roles fixture (creates the core system roles once per session) ─────────────
 
-@pytest.fixture(scope="session")
-def django_db_setup() -> None:
-    """Ensure the test DB is set up once per session."""
-    pass
-
-
 @pytest.fixture
 def roles(db: None) -> dict[str, Role]:
     """Create the standard system roles."""

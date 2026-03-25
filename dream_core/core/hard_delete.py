@@ -216,11 +216,16 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
             If the caller is not authorised or the token is too short.
         """
         self._validate_hard_delete_authorisation(authorised_by, authorisation_token)
-        self._log_hard_delete(authorised_by, authorisation_token)
+        is_registered = self._log_hard_delete(authorised_by, authorisation_token)
 
-        # Delegate directly to Django's real Model.delete(), bypassing SoftDeleteModel
-        result = models.Model.delete(self, using=using, keep_parents=keep_parents)  # type: ignore[misc]
-        return result  # type: ignore[return-value]
+        try:
+            # Delegate directly to Django's real Model.delete(), bypassing SoftDeleteModel
+            result = models.Model.delete(self, using=using, keep_parents=keep_parents)  # type: ignore[misc]
+            return result  # type: ignore[return-value]
+        finally:
+            if is_registered:
+                from auditlog.registry import auditlog
+                auditlog.register(self.__class__)
 
     # ── Private helpers ────────────────────────────────────────────────────────
 
@@ -282,15 +287,15 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
                 f"before hard deletion is possible."
             )
 
-    def _log_hard_delete(self, authorised_by: Any, authorisation_token: str) -> None:
+    def _log_hard_delete(self, authorised_by: Any, authorisation_token: str) -> bool:
         """
         Write a structured log entry and an auditlog LogEntry for this event.
 
         Two sinks are written intentionally:
           - Python logger  → goes to whatever handler is configured (stdout,
             syslog, Sentry, etc.).  Fast, always available.
-          - django-auditlog → persisted in the database, queryable via the
-            Audit API by AUDITOR/ADMIN roles.  Survives log rotation.
+          - AuditEvent → persisted in the database via proxy over LogEntry,
+            queryable via the Audit API by AUDITOR/ADMIN roles.
         """
         model_label = (
             f"{self.__class__._meta.app_label}."
@@ -314,35 +319,31 @@ class HardDeleteGuard(models.Model, metaclass=HardDeleteGuardMeta):
             },
         )
 
-        # ── django-auditlog LogEntry ───────────────────────────────────────
+        # ── AuditEvent, wrapper for django-auditlog LogEntry ───────────────
         # We create the entry *before* the actual delete so the content_type
-        # and pk are still resolvable.  auditlog uses action=2 for DELETE.
+        # and pk are still resolvable. AuditEvent uses action=4 for HARD_DELETE.
+        is_registered = False
         try:
-            from auditlog.models import LogEntry  # type: ignore[import-untyped]
-            from django.contrib.contenttypes.models import ContentType
+            from dream_core.audit.models import AuditEvent  # type: ignore[import-untyped]
 
-            ct = ContentType.objects.get_for_model(self.__class__)
-            LogEntry.objects.log_create(  # type: ignore[attr-defined]
+            is_registered = AuditEvent.objects.log_hard_delete(
                 instance=self,
-                action=LogEntry.Action.DELETE,
-                actor=authorised_by if getattr(authorised_by, "pk", None) else None,
-                additional_data={
-                    "hard_delete": True,
-                    "authorisation_token": authorisation_token,
-                    "actor_email": actor_email,
-                },
+                authorised_by=authorised_by,
+                authorisation_token=authorisation_token,
+                actor_email=actor_email
             )
         except Exception as exc:  # pragma: no cover
             # Logging failure must never block the authorised operation.
             logger.error(
-                "Failed to write auditlog entry for hard_delete "
+                "Failed to write AuditEvent entry for hard_delete "
                 "model=%s pk=%s: %s",
                 model_label,
                 str(self.pk),  # type: ignore[attr-defined]
                 exc,
             )
             print("AUDITLOG EXCEPTION:", exc)
-            raise
+        
+        return is_registered
 
 
 # ── DRF Permission class ───────────────────────────────────────────────────────

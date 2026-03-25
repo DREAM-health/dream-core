@@ -31,6 +31,7 @@ from rest_framework.views import APIView
 from dream_core.accounts.permissions import HasAnyRole, IsAdmin
 from dream_core.catalog.models import ReferenceRange, LabTestDefinition, LabTestPanel, MeasurementUnit
 from dream_core.catalog.serializers import (
+    ReferenceRangeSerializer,
     ResultInterpretationSerializer,
     LabTestDefinitionDetailSerializer,
     LabTestDefinitionListSerializer,

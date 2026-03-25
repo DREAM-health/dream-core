@@ -29,7 +29,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from auditlog.models import LogEntry  # type: ignore[import-untyped]
+from auditlog.models import LogEntry, LogEntryManager  # type: ignore[import-untyped]
 from django.db import models
 from django.db.models import QuerySet
 
@@ -37,36 +37,56 @@ if TYPE_CHECKING:
     from dream_core.accounts.models import User
 
 
-# ── Action constants (mirrors LogEntry.Action) ────────────────────────────────
-
-class AuditAction:
-    """Human-readable constants for LogEntry.action integer codes."""
-    CREATE = 0
-    UPDATE = 1
-    DELETE = 2
-    ACCESS = 3
-
-    CHOICES: dict[int, str] = {
-        CREATE: "CREATE",
-        UPDATE: "UPDATE",
-        DELETE: "DELETE",
-        ACCESS: "ACCESS",
-    }
-
-    @classmethod
-    def display(cls, code: int) -> str:
-        return cls.CHOICES.get(code, "UNKNOWN")
-
-
 # ── Custom manager ────────────────────────────────────────────────────────────
 
-class AuditEventManager(models.Manager["AuditEvent"]):
+class AuditEventManager(LogEntryManager):
     """
     Manager with domain-oriented query helpers.
 
     All methods return QuerySets so callers can chain further filters,
     paginate, or annotate freely.
     """
+
+    def log_hard_delete(
+        self,
+        instance: models.Model,
+        authorised_by: User | None,
+        authorisation_token: str,
+        actor_email: str,
+    ) -> bool:
+        """
+        Write a hard-delete audit entry.
+
+        Wraps LogEntry.objects.log_create() so that hard_delete.py never
+        needs to import from django-auditlog directly.
+        """
+        from auditlog.registry import auditlog as auditlog_registry
+        from django.contrib.contenttypes.models import ContentType
+
+        # ── Auditlog LogEntry ───────────────────────────────────────
+        # We create the entry *before* the actual delete so the content_type
+        # and pk are still resolvable.
+        ct = ContentType.objects.get_for_model(instance.__class__)
+        self.create(
+            content_type=ct,
+            object_pk=str(instance.pk),
+            object_repr=str(instance),
+            action=AuditEvent.Action.HARD_DELETE,
+            actor=authorised_by if getattr(authorised_by, "pk", None) else None,
+            additional_data={
+                "hard_delete": True,
+                "authorisation_token": authorisation_token,
+                "actor_email": actor_email,
+            },
+        )
+
+        # Temporarily unregister the model from auditlog to prevent duplicate
+        # DELETE entries (one from us with additional_data, one from auditlog
+        # middleware without it).
+        is_registered = instance.__class__ in auditlog_registry._registry
+        if is_registered:
+            auditlog_registry.unregister(instance.__class__)
+        return is_registered
 
     def for_object(self, obj: models.Model) -> QuerySet["AuditEvent"]:
         """All events for a specific model instance."""
@@ -89,13 +109,19 @@ class AuditEventManager(models.Manager["AuditEvent"]):
         )
 
     def creates(self) -> QuerySet["AuditEvent"]:
-        return self.get_queryset().filter(action=AuditAction.CREATE)
+        return self.get_queryset().filter(action=AuditEvent.Action.CREATE)
 
     def updates(self) -> QuerySet["AuditEvent"]:
-        return self.get_queryset().filter(action=AuditAction.UPDATE)
+        return self.get_queryset().filter(action=AuditEvent.Action.UPDATE)
 
     def deletes(self) -> QuerySet["AuditEvent"]:
-        return self.get_queryset().filter(action=AuditAction.DELETE)
+        return self.get_queryset().filter(action=AuditEvent.Action.DELETE)
+
+    def accesses(self) -> QuerySet["AuditEvent"]:
+        return self.get_queryset().filter(action=AuditEvent.Action.ACCESS)
+
+    def hard_deletes(self) -> QuerySet["AuditEvent"]:
+        return self.get_queryset().filter(action=AuditEvent.Action.HARD_DELETE)
 
     def in_range(
         self,
@@ -143,6 +169,31 @@ class AuditEvent(LogEntry):
     and are immediately visible through this proxy.
     """
 
+    class Action(LogEntry.Action):
+        """
+        Extends auditlog's Action constants with dream-core-specific actions.
+
+        HARD_DELETE (4) is stored in the same `action` PositiveSmallIntegerField
+        as the standard actions. The field has no upper-bound validator that would
+        block it, and auditlog's own choices tuple is not used for DB constraint
+        enforcement — only for display in the Django admin.
+
+        Use AuditEvent.Action.HARD_DELETE when writing hard-delete audit entries
+        via log_create(). The entry will be visible through AuditEvent.objects
+        and all its query helpers, and will display as "hard delete" in the admin.
+        """
+        HARD_DELETE = 4
+
+        choices = LogEntry.Action.choices + (
+            (HARD_DELETE, str("hard_delete")),
+        )
+
+        CHOICES = dict((i, str(s)) for i, s in choices)
+
+        @classmethod
+        def display(self, code: int) -> str:
+            return self.CHOICES.get(code, "UNKNOWN")
+
     objects: AuditEventManager = AuditEventManager()  # type: ignore[assignment]
 
     class Meta:
@@ -156,8 +207,8 @@ class AuditEvent(LogEntry):
 
     @property
     def action_display(self) -> str:
-        """Human-readable action label: CREATE / UPDATE / DELETE / ACCESS."""
-        return AuditAction.display(self.action)
+        """Human-readable action label: CREATE / UPDATE / DELETE / ACCESS / HARD_DELETE."""
+        return AuditEvent.Action.display(self.action)
 
     @property
     def resource_label(self) -> str:
