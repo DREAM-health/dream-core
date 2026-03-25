@@ -29,7 +29,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from auditlog.models import LogEntry  # type: ignore[import-untyped]
+from auditlog.models import LogEntry, LogEntryManager  # type: ignore[import-untyped]
 from django.db import models
 from django.db.models import QuerySet
 
@@ -60,13 +60,55 @@ class AuditAction:
 
 # ── Custom manager ────────────────────────────────────────────────────────────
 
-class AuditEventManager(models.Manager["AuditEvent"]):
+class AuditEventManager(LogEntryManager):
     """
     Manager with domain-oriented query helpers.
 
     All methods return QuerySets so callers can chain further filters,
     paginate, or annotate freely.
     """
+
+    def log_hard_delete(
+        self,
+        instance: models.Model,
+        authorised_by: User | None,
+        authorisation_token: str,
+        actor_email: str,
+    ) -> bool:
+        """
+        Manually create a DELETE LogEntry with hard-delete justification,
+        and unregister the model from auditlog temporarily.
+
+        Returns:
+            bool: True if the model was registered before unregistration.
+        """
+        from auditlog.registry import auditlog as auditlog_registry
+        from django.contrib.contenttypes.models import ContentType
+
+        # ── Auditlog LogEntry ───────────────────────────────────────
+        # We create the entry *before* the actual delete so the content_type
+        # and pk are still resolvable.
+        ct = ContentType.objects.get_for_model(instance.__class__)
+        self.create(
+            content_type=ct,
+            object_pk=str(instance.pk),
+            object_repr=str(instance),
+            action=AuditAction.DELETE,
+            actor=authorised_by if getattr(authorised_by, "pk", None) else None,
+            additional_data={
+                "hard_delete": True,
+                "authorisation_token": authorisation_token,
+                "actor_email": actor_email,
+            },
+        )
+
+        # Temporarily unregister the model from auditlog to prevent duplicate
+        # DELETE entries (one from us with additional_data, one from auditlog
+        # middleware without it).
+        is_registered = instance.__class__ in auditlog_registry._registry
+        if is_registered:
+            auditlog_registry.unregister(instance.__class__)
+        return is_registered
 
     def for_object(self, obj: models.Model) -> QuerySet["AuditEvent"]:
         """All events for a specific model instance."""
