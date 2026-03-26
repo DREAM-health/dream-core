@@ -24,7 +24,7 @@ class ReferenceRangeSerializer(serializers.ModelSerializer[ReferenceRange]):
     class Meta:
         model = ReferenceRange
         fields = [
-            "id", "sex", "age_min_days", "age_max_days", "label",
+            "id", "gender", "age_min_days", "age_max_days", "label",
             "low_normal", "high_normal",
             "low_critical", "high_critical",
             "low_reportable", "high_reportable",
@@ -39,7 +39,7 @@ class ReferenceRangeWriteSerializer(serializers.ModelSerializer[ReferenceRange])
     class Meta:
         model = ReferenceRange
         fields = [
-            "id", "sex", "age_min_days", "age_max_days", "label",
+            "id", "gender", "age_min_days", "age_max_days", "label",
             "low_normal", "high_normal",
             "low_critical", "high_critical",
             "low_reportable", "high_reportable",
@@ -212,13 +212,13 @@ class LabTestPanelWriteSerializer(serializers.ModelSerializer[LabTestPanel]):
 
 class ResultInterpretationSerializer(serializers.Serializer[Any]):
     """
-    Given a test code, a numeric value, patient age in days, and sex,
+    Given a test code, a numeric value, patient age in days, and gender,
     return the appropriate reference range interpretation flag.
     """
     test_code = serializers.CharField()
     value = serializers.DecimalField(max_digits=16, decimal_places=6)
     patient_age_days = serializers.IntegerField(required=False, allow_null=True, default=None)
-    patient_sex = serializers.ChoiceField(
+    patient_gender = serializers.ChoiceField(
         choices=["male", "female", "any"],
         required=False,
         default="any",

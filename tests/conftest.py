@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from dream_core.accounts.models import Role, User
-
+from dream_core.accounts.accounts_utils import RoleType
 
 # ── Roles fixture (creates the core system roles once per session) ─────────────
 
@@ -16,8 +16,8 @@ from dream_core.accounts.models import Role, User
 def roles(db: None) -> dict[str, Role]:
     """Create the standard system roles."""
     role_names = [
-        "SUPERADMIN", "ADMIN", "CLINICIAN",
-        "LAB_MANAGER", "LAB_ANALYST", "RECEPTIONIST", "AUDITOR",
+        RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN,
+        RoleType.LAB_MANAGER, RoleType.LAB_ANALYST, RoleType.RECEPTIONIST, RoleType.AUDITOR,
     ]
     return {
         name: Role.objects.get_or_create(name=name, defaults={"is_system": True})[0]
@@ -36,7 +36,7 @@ def superadmin_user(db: None, roles: dict[str, Role]) -> User:
         last_name="Admin",
         must_change_password=False,
     )
-    user.roles.add(roles["SUPERADMIN"])
+    user.roles.add(roles[RoleType.SUPERADMIN])
     return user
 
 
@@ -49,7 +49,7 @@ def admin_user(db: None, roles: dict[str, Role]) -> User:
         last_name="Admin",
         must_change_password=False,
     )
-    user.roles.add(roles["ADMIN"])
+    user.roles.add(roles[RoleType.ADMIN])
     return user
 
 
@@ -62,7 +62,7 @@ def lab_manager_user(db: None, roles: dict[str, Role]) -> User:
         last_name="Manager",
         must_change_password=False,
     )
-    user.roles.add(roles["LAB_MANAGER"])
+    user.roles.add(roles[RoleType.LAB_MANAGER])
     return user
 
 
@@ -75,7 +75,7 @@ def lab_analyst_user(db: None, roles: dict[str, Role]) -> User:
         last_name="Analyst",
         must_change_password=False,
     )
-    user.roles.add(roles["LAB_ANALYST"])
+    user.roles.add(roles[RoleType.LAB_ANALYST])
     return user
 
 
@@ -88,7 +88,7 @@ def clinician_user(db: None, roles: dict[str, Role]) -> User:
         last_name="Doctor",
         must_change_password=False,
     )
-    user.roles.add(roles["CLINICIAN"])
+    user.roles.add(roles[RoleType.CLINICIAN])
     return user
 
 
@@ -101,7 +101,7 @@ def auditor_user(db: None, roles: dict[str, Role]) -> User:
         last_name="User",
         must_change_password=False,
     )
-    user.roles.add(roles["AUDITOR"])
+    user.roles.add(roles[RoleType.AUDITOR])
     return user
 
 

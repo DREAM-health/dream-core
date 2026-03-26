@@ -28,6 +28,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from dream_core.accounts.accounts_utils import RoleType
 from dream_core.accounts.permissions import HasAnyRole, IsAdmin
 from dream_core.catalog.models import ReferenceRange, LabTestDefinition, LabTestPanel, MeasurementUnit
 from dream_core.catalog.serializers import (
@@ -44,11 +45,11 @@ from dream_core.catalog.serializers import (
 
 # Roles that can READ the catalog (broad — all clinical roles)
 _READ_ROLES = HasAnyRole(
-    "SUPERADMIN", "ADMIN", "CLINICIAN",
-    "LAB_MANAGER", "LAB_ANALYST", "RECEPTIONIST",
+    RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN,
+    RoleType.LAB_MANAGER, RoleType.LAB_ANALYST, RoleType.RECEPTIONIST,
 )
 # Roles that can WRITE the catalog
-_WRITE_ROLES = HasAnyRole("SUPERADMIN", "ADMIN", "LAB_MANAGER")
+_WRITE_ROLES = HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.LAB_MANAGER)
 
 
 # ── Units ─────────────────────────────────────────────────────────────────────
@@ -66,8 +67,8 @@ class UnitListCreateView(generics.ListCreateAPIView[MeasurementUnit]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES]
-        return [IsAuthenticated(), _WRITE_ROLES]
+            self.permission_classes = [IsAuthenticated, _READ_ROLES]
+        self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
 
 
 @extend_schema(tags=["catalog"])
@@ -83,8 +84,8 @@ class UnitDetailView(generics.RetrieveUpdateDestroyAPIView[MeasurementUnit]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES]
-        return [IsAuthenticated(), _WRITE_ROLES]
+            return [IsAuthenticated, _READ_ROLES]
+        return [IsAuthenticated, _WRITE_ROLES]
 
 
 # ── LabTestPanels ───────────────────────────────────────────────────────────────
@@ -101,8 +102,8 @@ class LabTestPanelListCreateView(generics.ListCreateAPIView[LabTestPanel]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES]
-        return [IsAuthenticated(), _WRITE_ROLES]
+            return [IsAuthenticated, _READ_ROLES]
+        return [IsAuthenticated, _WRITE_ROLES]
 
     def get_queryset(self) -> QuerySet[LabTestPanel]:
         return (
@@ -139,8 +140,8 @@ class LabTestPanelDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestPanel]
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES]
-        return [IsAuthenticated(), _WRITE_ROLES]
+            return [IsAuthenticated, _READ_ROLES]
+        return [IsAuthenticated, _WRITE_ROLES]
 
     def get_queryset(self) -> QuerySet[LabTestPanel]:
         return LabTestPanel.objects.prefetch_related("tests__unit", "tests__reference_ranges")
@@ -176,8 +177,8 @@ class LabTestDefinitionListCreateView(generics.ListCreateAPIView[LabTestDefiniti
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES]
-        return [IsAuthenticated(), _WRITE_ROLES]
+            return [IsAuthenticated, _READ_ROLES]
+        return [IsAuthenticated, _WRITE_ROLES]
 
     def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
@@ -217,8 +218,8 @@ class LabTestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestD
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES]
-        return [IsAuthenticated(), _WRITE_ROLES]
+            return [IsAuthenticated, _READ_ROLES]
+        return [IsAuthenticated, _WRITE_ROLES]
 
     def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
@@ -264,7 +265,7 @@ class ResultInterpretationView(APIView):
     """
     POST /api/v1/catalog/tests/interpret/
 
-    Given a test code, numeric result value, patient age (days) and sex,
+    Given a test code, numeric result value, patient age (days) and gender,
     return the correct reference range interpretation flag.
 
     Flags:
@@ -278,7 +279,7 @@ class ResultInterpretationView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        HasAnyRole("SUPERADMIN", "ADMIN", "CLINICIAN", "LAB_MANAGER", "LAB_ANALYST"),
+        HasAnyRole(RoleType.SUPERADMIN,RoleType.ADMIN,RoleType.CLINICIAN, RoleType.LAB_MANAGER, RoleType.LAB_ANALYST),
     ]
 
     @extend_schema(
@@ -297,7 +298,7 @@ class ResultInterpretationView(APIView):
         test_code: str = serializer.validated_data["test_code"]
         value: Decimal = serializer.validated_data["value"]
         age_days: int | None = serializer.validated_data.get("patient_age_days")
-        sex: str = serializer.validated_data.get("patient_sex", "any")
+        gender: str = serializer.validated_data.get("patient_gender", "any")
 
         try:
             test = LabTestDefinition.objects.get(code=test_code, is_active=True)
@@ -316,8 +317,8 @@ class ResultInterpretationView(APIView):
         # Find the best matching reference range
         ranges = ReferenceRange.objects.filter(test=test, is_active=True)
 
-        # Filter by sex
-        ranges = ranges.filter(sex__in=[sex, "any"])
+        # Filter by gender
+        ranges = ranges.filter(gender__in=[gender, "any"])
 
         # Filter by age if provided
         if age_days is not None:
@@ -325,8 +326,8 @@ class ResultInterpretationView(APIView):
                 models_Q_age(age_days)
             )
 
-        # Prefer most specific match (sex match over 'any', narrower age band)
-        range_obj = _best_reference_range(list(ranges), sex, age_days)
+        # Prefer most specific match (gender match over 'any', narrower age band)
+        range_obj = _best_reference_range(list(ranges), gender, age_days)
 
         if range_obj is None:
             return Response({
@@ -354,19 +355,19 @@ def models_Q_age(age_days: int) -> Any:
 
 def _best_reference_range(
     ranges: list[ReferenceRange],
-    sex: str,
+    gender: str,
     age_days: int | None,
 ) -> ReferenceRange | None:
     """
     Select the most specific matching reference range.
-    Priority: exact sex match > 'any'; narrower age band > wider.
+    Priority: exact gender match > 'any'; narrower age band > wider.
     """
     if not ranges:
         return None
 
-    # Prefer exact sex match
-    sex_specific = [r for r in ranges if r.sex == sex]
-    candidates = sex_specific if sex_specific else ranges
+    # Prefer exact gender match
+    gender_specific = [r for r in ranges if r.gender == gender]
+    candidates = gender_specific if gender_specific else ranges
 
     # Among candidates, prefer range with narrowest age band
     def age_band_width(r: ReferenceRange) -> int:

@@ -39,6 +39,7 @@ LOCAL_APPS: list[str] = [
     "dream_core.audit",
     "dream_core.catalog",
     "dream_core.core",
+    "dream_core.facilities",
     "dream_core.patients",
 ]
 
@@ -150,6 +151,16 @@ SIMPLE_JWT: dict[str, object] = {
 # ── Auditlog ──────────────────────────────────────────────────────────────────
 AUDITLOG_INCLUDE_ALL_MODELS: bool = False   # We register explicitly per model
 # AUDITLOG_EXCLUDE_TRACKING_FIELDS: tuple[str, ...] = ("updated_at",)
+
+# ── Facility / Multi-tenancy ──────────────────────────────────────────────────
+# Phase 1: False — Facility FK exists on models but is NOT enforced in queries.
+#          Data can be created without a facility; no filtering is applied.
+# Phase 2: True  — FacilityFilterMixin scopes all querysets to the requesting
+#          user's permitted facilities. FacilityRequiredMixin enforces that
+#          new records are always assigned to a facility.
+# Flip this flag (per environment) to activate enforcement without any code
+# changes in views or serializers.
+FACILITY_ENFORCEMENT_ENABLED: bool = False
 
 # ── drf-spectacular (OpenAPI) ─────────────────────────────────────────────────
 SPECTACULAR_SETTINGS: dict[str, object] = {

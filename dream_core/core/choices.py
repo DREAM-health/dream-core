@@ -9,7 +9,7 @@ class FHIRGender(models.TextChoices):
     https://hl7.org/fhir/valueset-administrative-gender.html
 
     Use this anywhere a FHIR-aligned gender field is needed.
-    Do NOT conflate with biological sex (used for reference ranges —
+    Do NOT conflate with biological gender (used for reference ranges —
     see ReferenceRange.GenderChoices in dream_core/catalog/models.py).
     """
     MALE    = "male",    "Male"

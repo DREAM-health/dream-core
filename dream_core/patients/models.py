@@ -73,6 +73,19 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
         help_text="General clinical notes. Sensitive — access controlled.",
     )
 
+    # ── Facility (Phase 2 tenancy stub) ───────────────────────────────────────
+    # Nullable in Phase 1. In Phase 2 this will be made non-nullable and all
+    # querysets will be scoped to the requesting user's facility_ids.
+    # See dream_core/facilities/mixins.py — FacilityFilterMixin.
+    facility: models.ForeignKey = models.ForeignKey(
+        "facilities.Facility",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="patients",
+        help_text="Facility this patient record belongs to. Required in Phase 2.",
+    )
+ 
     # ── Active status ─────────────────────────────────────────────────────────
     is_active: models.BooleanField = models.BooleanField(
         default=True,
@@ -104,7 +117,6 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
     # TODO: override in Patient.delete() that cascades the soft-delete to related objects.
     def delete(self, using = None, keep_parents = False, deleted_by = None, reason = ""):
         return super().delete(using, keep_parents, deleted_by, reason)
-
 
 
 class PatientIdentifier(models.Model):

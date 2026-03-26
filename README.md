@@ -242,7 +242,7 @@ The `seed_catalog` command loads a production-ready starter set:
 - **Lipid Panel**: TCHOL, HDL, LDL, TRIG
 - **Thyroid Function Tests (TFT)**: TSH, FT4, FT3
 
-All tests include sex-stratified reference ranges with normal, critical, and reportable limits.
+All tests include gender-stratified reference ranges with normal, critical, and reportable limits.
 
 ```bash
 python manage.py seed_catalog

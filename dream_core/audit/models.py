@@ -107,6 +107,27 @@ class AuditEventManager(LogEntryManager):
             content_type__app_label=app_label,
             content_type__model=model_name.lower(),
         )
+    
+    def for_facility(self, facility_id: str) -> QuerySet["AuditEvent"]:
+        """
+        All events whose audited object belongs to a given facility.
+
+        Phase 2 hook: uses `additional_data__facility_id` stored by the
+        AuditlogMiddleware once facility-scoping is active. In Phase 1 this
+        returns an empty queryset (no additional_data is set yet) so callers
+        should guard on FACILITY_ENFORCEMENT_ENABLED.
+
+        Implementation note: django-auditlog stores arbitrary extra data in the
+        `additional_data` JSONField. In Phase 2, a custom signal or middleware
+        will write {'facility_id': str(obj.facility_id)} there on every audited
+        mutation, making this filter efficient via a GIN index.
+        """
+        from django.conf import settings
+        if not getattr(settings, "FACILITY_ENFORCEMENT_ENABLED", False):
+            return self.get_queryset().none()
+        return self.get_queryset().filter(
+            additional_data__facility_id=str(facility_id)
+    )
 
     def creates(self) -> QuerySet["AuditEvent"]:
         return self.get_queryset().filter(action=AuditEvent.Action.CREATE)

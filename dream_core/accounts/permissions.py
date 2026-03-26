@@ -4,8 +4,9 @@ dream_core/accounts/permissions.py
 Custom DRF permission classes for dream-core RBAC.
 
 Usage in views:
-    permission_classes = [IsAuthenticated, HasRole("LAB_MANAGER")]
-    permission_classes = [IsAuthenticated, HasAnyRole("LAB_MANAGER", "LAB_ANALYST")]
+    from dream_core.accounts.accounts_utils import RoleType
+    permission_classes = [IsAuthenticated, HasRole(RoleType.LAB_MANAGER)]
+    permission_classes = [IsAuthenticated, HasAnyRole(RoleType.LAB_MANAGER, RoleType.LAB_ANALYST)]
 
 Design note:
     HasRole() and HasAnyRole() are factory functions that return a *class*,
@@ -19,6 +20,7 @@ from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
+from dream_core.accounts.accounts_utils import RoleType
 from dream_core.accounts.models import User
 
 
@@ -32,7 +34,7 @@ class IsSuperAdmin(BasePermission):
         if not user or not user.is_authenticated:
             return False
         assert isinstance(user, User)
-        return user.is_superuser or user.has_role("SUPERADMIN")
+        return user.is_superuser or user.has_role(RoleType.SUPERADMIN)
 
 
 class IsAdmin(BasePermission):
@@ -45,7 +47,7 @@ class IsAdmin(BasePermission):
         if not user or not user.is_authenticated:
             return False
         assert isinstance(user, User)
-        return user.is_superuser or user.has_role("SUPERADMIN") or user.has_role("ADMIN")
+        return user.is_superuser or user.has_role(RoleType.SUPERADMIN) or user.has_role("ADMIN")
 
 
 class IsAuditor(BasePermission):
@@ -60,9 +62,9 @@ class IsAuditor(BasePermission):
         assert isinstance(user, User)
         return (
             user.is_superuser
-            or user.has_role("AUDITOR")
-            or user.has_role("ADMIN")
-            or user.has_role("SUPERADMIN")
+            or user.has_role(RoleType.AUDITOR)
+            or user.has_role(RoleType.ADMIN)
+            or user.has_role(RoleType.SUPERADMIN)
         )
 
 
@@ -78,7 +80,8 @@ def HasRole(role_name: str) -> BasePermission:
     Factory that returns a DRF permission *class* requiring a specific role.
 
     Usage:
-        permission_classes = [IsAuthenticated, HasRole("LAB_MANAGER")]
+        from dream_core.accounts.accounts_utils import RoleType
+        permission_classes = [IsAuthenticated, HasRole(RoleType.LAB_MANAGER)]
     """
 
     class _HasRole(BasePermission):
@@ -105,7 +108,8 @@ def HasAnyRole(*role_names: str) -> BasePermission:
     of the specified roles.
 
     Usage:
-        permission_classes = [IsAuthenticated, HasAnyRole("LAB_MANAGER", "LAB_ANALYST")]
+        from dream_core.accounts.accounts_utils import RoleType
+        permission_classes = [IsAuthenticated, HasRole(RoleType.LAB_MANAGER, RoleType.LAB_ANALYST)]
     """
 
     class _HasAnyRole(BasePermission):

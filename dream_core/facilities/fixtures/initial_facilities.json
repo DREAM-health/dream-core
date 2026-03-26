@@ -1,0 +1,30 @@
+[
+  {
+    "model": "facilities.facility",
+    "pk": "00000000-0000-0000-0000-000000000001",
+    "fields": {
+      "name": "Default Facility",
+      "short_name": "Default",
+      "code": "DEFAULT",
+      "facility_type": "clinical_centre",
+      "parent_facility": null,
+      "address": {},
+      "phone": "",
+      "email": "",
+      "website": "",
+      "tax_id": "",
+      "oid": "",
+      "fhir_organization_id": "",
+      "is_active": true,
+      "timezone": "UTC",
+      "enforcement_enabled": false,
+      "deleted_at": null,
+      "deleted_by": null,
+      "deletion_reason": "",
+      "created_by": null,
+      "updated_by": null,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

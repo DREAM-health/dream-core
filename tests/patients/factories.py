@@ -1,8 +1,6 @@
 """
 tests/patients/factories.py — factory_boy factories for patients.
 """
-import datetime
-
 import factory
 from factory.django import DjangoModelFactory
 
@@ -19,6 +17,7 @@ class PatientFactory(DjangoModelFactory):
     gender = factory.Iterator(["male", "female", "other"])
     email = factory.Sequence(lambda n: f"patient{n}@example.com")
     is_active = True
+    facility = None  # Phase 1 default: no facility required
 
 
 class PatientIdentifierFactory(DjangoModelFactory):

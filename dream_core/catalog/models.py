@@ -154,6 +154,21 @@ class LabTestPanel(SoftDeleteModel):
         max_digits=10, decimal_places=2, null=True, blank=True,
     )
 
+    # ── Facility (Phase 2 tenancy stub) ───────────────────────────────────────
+    # A null facility means "shared/global catalog entry" — available to all
+    # facilities. A non-null facility means a facility-specific override panel.
+    facility: models.ForeignKey = models.ForeignKey(
+        "facilities.Facility",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="lab_test_panels",
+        help_text=(
+            "Facility that owns this panel. Null = global catalog entry"
+            "shared across all facilities."
+        ),
+    )
+
     class Meta:
         ordering = ["name"]
         verbose_name = "Lab Test Panel"
@@ -198,6 +213,10 @@ class LabTestDefinition(SoftDeleteModel):
 
     # Classification
     category: models.CharField = models.CharField(
+        max_length=150, blank=True, db_index=True,
+    )
+
+    panel: models.CharField = models.CharField(
         max_length=150, blank=True, db_index=True,
     )
 
@@ -253,6 +272,21 @@ class LabTestDefinition(SoftDeleteModel):
         max_digits=10, decimal_places=2, null=True, blank=True,
     )
     sort_order: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(default=0)
+
+    # ── Facility (Phase 2 tenancy stub) ───────────────────────────────────────
+    # Null = global test definition available to all facilities.
+    # Non-null = facility-specific customisation (e.g. different TAT or method).
+    facility: models.ForeignKey = models.ForeignKey(
+        "facilities.Facility",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="lab_test_definitions",
+        help_text=(
+            "Facility that owns this test definition. Null = global catalog entry "
+            "shared across all facilities."
+        ),
+    )
 
     class Meta:
         ordering = ["sort_order", "name"]
@@ -324,8 +358,9 @@ class ReferenceRange(TimeStampedModel):
 
     class GenderChoices(models.TextChoices):
         """
-        Biological sex with clinical applicability.
-        Not to be confused with apps.core.choices.FHIRGender
+        Biological genre with clinical applicability.
+        Not to be confused with dream_core.core.choices.FHIRGender
+        which is administrative genre.
         """
         ANY = "any", "Any / Not specified"
         MALE = "male", "Male"

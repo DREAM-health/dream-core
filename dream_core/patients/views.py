@@ -40,6 +40,8 @@ from dream_core.patients.serializers import (
     PatientWriteSerializer,
 )
 
+from dream_core.accounts.accounts_utils import RoleType
+
 
 # ── Mixins ────────────────────────────────────────────────────────────────────
 
@@ -77,12 +79,12 @@ class PatientListCreateView(PatientQuerysetMixin, generics.ListCreateAPIView[Pat
         if self.request.method == "POST":
             self.permission_classes = [
                 IsAuthenticated,
-                HasAnyRole("SUPERADMIN", "ADMIN", "CLINICIAN", "RECEPTIONIST"),
+                HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.RECEPTIONIST),
             ]
         else:
             self.permission_classes = [
                 IsAuthenticated,
-                HasAnyRole("SUPERADMIN", "ADMIN", "CLINICIAN", "LAB_MANAGER", "LAB_ANALYST", "RECEPTIONIST"),
+                HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.LAB_MANAGER, RoleType.LAB_ANALYST, RoleType.RECEPTIONIST),
             ]
         return super().get_permissions()
     filterset_fields = ["gender", "is_active", "blood_type"]
@@ -121,7 +123,7 @@ class PatientDetailView(PatientQuerysetMixin, generics.RetrieveUpdateDestroyAPIV
 
     permission_classes = [
         IsAuthenticated,
-        HasAnyRole("SUPERADMIN", "ADMIN", "CLINICIAN", "LAB_MANAGER", "RECEPTIONIST"),
+        HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.LAB_MANAGER, RoleType.RECEPTIONIST),
     ]
 
     def get_serializer_class(self) -> Any:
@@ -176,7 +178,7 @@ class FHIRPatientCreateView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        HasAnyRole("SUPERADMIN", "ADMIN", "CLINICIAN", "RECEPTIONIST"),
+        HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.RECEPTIONIST),
     ]
 
     @extend_schema(
@@ -201,7 +203,7 @@ class FHIRPatientDetailView(APIView):
 
     permission_classes = [
         IsAuthenticated,
-        HasAnyRole("SUPERADMIN", "ADMIN", "CLINICIAN", "LAB_MANAGER", "LAB_ANALYST", "RECEPTIONIST"),
+        HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.LAB_MANAGER, RoleType.LAB_ANALYST, RoleType.RECEPTIONIST),
     ]
 
     def _get_patient(self, pk: str) -> Patient:
