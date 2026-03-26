@@ -67,8 +67,10 @@ class UnitListCreateView(generics.ListCreateAPIView[MeasurementUnit]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES()]
-        return [IsAuthenticated(), _WRITE_ROLES()]
+            self.permission_classes = [IsAuthenticated, _READ_ROLES]
+        else:
+            self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
+        return super().get_permissions()
 
 
 @extend_schema(tags=["catalog"])
@@ -84,8 +86,10 @@ class UnitDetailView(generics.RetrieveUpdateDestroyAPIView[MeasurementUnit]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES()]
-        return [IsAuthenticated(), _WRITE_ROLES()]
+            self.permission_classes = [IsAuthenticated, _READ_ROLES]
+        else:
+            self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
+        return super().get_permissions()
 
 
 # ── LabTestPanels ───────────────────────────────────────────────────────────────
@@ -102,8 +106,10 @@ class LabTestPanelListCreateView(generics.ListCreateAPIView[LabTestPanel]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES()]
-        return [IsAuthenticated(), _WRITE_ROLES()]
+            self.permission_classes = [IsAuthenticated, _READ_ROLES]
+        else:
+            self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
+        return super().get_permissions()
 
     def get_queryset(self) -> QuerySet[LabTestPanel]:
         return (
@@ -136,8 +142,10 @@ class LabTestPanelDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestPanel]
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES()]
-        return [IsAuthenticated(), _WRITE_ROLES()]
+            self.permission_classes = [IsAuthenticated, _READ_ROLES]
+        else:
+            self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
+        return super().get_permissions()
 
     def get_queryset(self) -> QuerySet[LabTestPanel]:
         return LabTestPanel.objects.prefetch_related("tests__unit", "tests__reference_ranges")
@@ -173,8 +181,10 @@ class LabTestDefinitionListCreateView(generics.ListCreateAPIView[LabTestDefiniti
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES()]
-        return [IsAuthenticated(), _WRITE_ROLES()]
+            self.permission_classes = [IsAuthenticated, _READ_ROLES]
+        else:
+            self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
+        return super().get_permissions()
 
     def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
@@ -214,8 +224,10 @@ class LabTestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestD
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated(), _READ_ROLES()]
-        return [IsAuthenticated(), _WRITE_ROLES()]
+            self.permission_classes = [IsAuthenticated, _READ_ROLES]
+        else:
+            self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
+        return super().get_permissions()
 
     def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
