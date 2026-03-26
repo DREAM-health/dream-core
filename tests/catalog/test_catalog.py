@@ -35,7 +35,7 @@ def panel_url(pk: object) -> str:
     return f"/api/v1/catalog/panels/{pk}/"
 
 
-def test_url(pk: object) -> str:
+def labtest_url(pk: object) -> str:
     return f"/api/v1/catalog/tests/{pk}/"
 
 
@@ -114,7 +114,7 @@ class TestLabTestPanelCRUD:
 
     def test_retrieve_panel_includes_tests(self, lab_analyst_client: APIClient) -> None:
         panel = LabTestPanelFactory()
-        LabTestDefinitionFactory.create_batch(3, panel=panel)
+        LabTestDefinitionFactory.create_batch(3, panels=[panel])
 
         resp = lab_analyst_client.get(panel_url(panel.id))
         assert resp.status_code == status.HTTP_200_OK
@@ -226,7 +226,7 @@ class TestLabTestDefinitionCRUD:
         ReferenceRangeFactory(test=test)
         ReferenceRangeFactory(test=test, gender="male")
 
-        resp = lab_analyst_client.get(test_url(test.id))
+        resp = lab_analyst_client.get(labtest_url(test.id))
         assert resp.status_code == status.HTTP_200_OK
         assert len(resp.json()["reference_ranges"]) == 2
 
@@ -249,13 +249,13 @@ class TestLabTestDefinitionCRUD:
                 }
             ]
         }
-        resp = lab_manager_client.patch(test_url(test.id), payload, format="json")
+        resp = lab_manager_client.patch(labtest_url(test.id), payload, format="json")
         assert resp.status_code == status.HTTP_200_OK
         assert ReferenceRange.objects.filter(test=test).count() == 1
 
     def test_lab_test_soft_delete(self, lab_manager_client: APIClient) -> None:
         test = LabTestDefinitionFactory()
-        resp = lab_manager_client.delete(test_url(test.id))
+        resp = lab_manager_client.delete(labtest_url(test.id))
         assert resp.status_code == status.HTTP_200_OK
 
         test.refresh_from_db()

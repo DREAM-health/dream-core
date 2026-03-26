@@ -19,7 +19,7 @@ urlpatterns = [
     path("panels/<uuid:pk>/", LabTestPanelDetailView.as_view(), name="catalog-panel-detail"),
 
     # LabTest definitions
-    path("labtests/", LabTestDefinitionListCreateView.as_view(), name="catalog-labtest-list"),
-    path("labtests/interpret/", ResultInterpretationView.as_view(), name="catalog-labtest-interpret"),
-    path("labtests/<uuid:pk>/", LabTestDefinitionDetailView.as_view(), name="catalog-labtest-detail"),
+    path("tests/", LabTestDefinitionListCreateView.as_view(), name="catalog-labtest-list"),
+    path("tests/interpret/", ResultInterpretationView.as_view(), name="catalog-labtest-interpret"),
+    path("tests/<uuid:pk>/", LabTestDefinitionDetailView.as_view(), name="catalog-labtest-detail"),
 ]

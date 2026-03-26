@@ -60,9 +60,10 @@ from django.db import models
 from auditlog.registry import auditlog
 
 from dream_core.core.models import SoftDeleteModel
+from dream_core.core.hard_delete import HardDeleteGuard
 
 
-class Facility(SoftDeleteModel):
+class Facility(HardDeleteGuard, SoftDeleteModel):
     """
     An organisational unit that owns clinical and/or laboratory data.
 

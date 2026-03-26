@@ -60,7 +60,9 @@ def get_user_facility_ids(request: Request) -> list[str]:
     """
     cache_attr = "_facility_ids"
     if hasattr(request, cache_attr):
-        return getattr(request, cache_attr)  # type: ignore[return-value]
+        val = getattr(request, cache_attr)
+        if isinstance(val, list):
+            return val
 
     ids: list[str] = list(
         FacilityMembership.objects
@@ -105,6 +107,18 @@ class FacilityFilterMixin:
         if not enforcement_active():
             return queryset
 
+        # Only apply if the model actually has a facility field.
+        model = queryset.model
+        opts = model._meta
+        has_facility = False
+        for f in opts.get_fields():
+            if f.name == "facility":
+                has_facility = True
+                break
+
+        if not has_facility:
+            return queryset
+
         # SUPERADMIN and is_superuser bypass facility scoping entirely.
         user = self.request.user
         if getattr(user, "is_superuser", False) or getattr(user, "has_role", lambda r: False)(RoleType.SUPERADMIN):
@@ -115,12 +129,7 @@ class FacilityFilterMixin:
             # User has no facility memberships — deny all access.
             return queryset.none()
 
-        # Only apply if the model actually has a facility field.
-        model = queryset.model
-        if hasattr(model, "facility_id"):
-            return queryset.filter(facility_id__in=facility_ids)
-
-        return queryset
+        return queryset.filter(facility_id__in=facility_ids)
 
 
 class FacilityRequiredMixin:

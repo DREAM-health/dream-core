@@ -216,8 +216,10 @@ class LabTestDefinition(SoftDeleteModel):
         max_length=150, blank=True, db_index=True,
     )
 
-    panel: models.CharField = models.CharField(
-        max_length=150, blank=True, db_index=True,
+    panels: models.ManyToManyField = models.ManyToManyField(
+        LabTestPanel,
+        through="LabTestPanelMembership",
+        related_name="tests",
     )
 
     container_type: models.CharField = models.CharField(
@@ -314,7 +316,7 @@ class LabTestPanelMembership(models.Model):
         LabTestPanel, on_delete=models.CASCADE, related_name="memberships",
     )
     lab_test: models.ForeignKey = models.ForeignKey(
-        LabTestDefinition, on_delete=models.CASCADE, related_name="panel_memberships",
+        LabTestDefinition, on_delete=models.CASCADE, related_name="memberships",
     )
     sort_order: models.PositiveSmallIntegerField = models.PositiveSmallIntegerField(default=0)
     is_optional: models.BooleanField = models.BooleanField(default=False)

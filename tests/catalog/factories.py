@@ -51,6 +51,15 @@ class LabTestDefinitionFactory(DjangoModelFactory):
     category = "Biochemistry"
     facility = None  # Phase 1 default: global catalog entry
 
+    @factory.post_generation
+    def panels(self, create, extracted, **kwargs):
+        if not create:
+            return
+        if extracted:
+            for panel in extracted:
+                from dream_core.catalog.models import LabTestPanelMembership
+                LabTestPanelMembership.objects.create(panel=panel, lab_test=self)
+
 
 class ReferenceRangeFactory(DjangoModelFactory):
     class Meta:

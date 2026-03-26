@@ -67,8 +67,8 @@ class UnitListCreateView(generics.ListCreateAPIView[MeasurementUnit]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            self.permission_classes = [IsAuthenticated, _READ_ROLES]
-        self.permission_classes = [IsAuthenticated, _WRITE_ROLES]
+            return [IsAuthenticated(), _READ_ROLES()]
+        return [IsAuthenticated(), _WRITE_ROLES()]
 
 
 @extend_schema(tags=["catalog"])
@@ -84,8 +84,8 @@ class UnitDetailView(generics.RetrieveUpdateDestroyAPIView[MeasurementUnit]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated, _READ_ROLES]
-        return [IsAuthenticated, _WRITE_ROLES]
+            return [IsAuthenticated(), _READ_ROLES()]
+        return [IsAuthenticated(), _WRITE_ROLES()]
 
 
 # ── LabTestPanels ───────────────────────────────────────────────────────────────
@@ -102,13 +102,13 @@ class LabTestPanelListCreateView(generics.ListCreateAPIView[LabTestPanel]):
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated, _READ_ROLES]
-        return [IsAuthenticated, _WRITE_ROLES]
+            return [IsAuthenticated(), _READ_ROLES()]
+        return [IsAuthenticated(), _WRITE_ROLES()]
 
     def get_queryset(self) -> QuerySet[LabTestPanel]:
         return (
             LabTestPanel.objects
-            .annotate(test_count=Count("tests"))
+            .annotate(test_count=Count("memberships"))
             .prefetch_related("tests")
         )
 
@@ -118,14 +118,10 @@ class LabTestPanelListCreateView(generics.ListCreateAPIView[LabTestPanel]):
         return LabTestPanelListSerializer
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        print(request.data)
         serializer = LabTestPanelWriteSerializer(data=request.data, context={"request": request})
-        print(serializer)
         serializer.is_valid(raise_exception=True)
         panel: LabTestPanel = serializer.save()
-        output = LabTestPanelDetailSerializer(
-            LabTestPanel.objects.annotate(test_count=Count("tests")).get(pk=panel.pk)
-        )
+        output = LabTestPanelDetailSerializer(panel)
         return Response(output.data, status=status.HTTP_201_CREATED)
 
 
@@ -140,8 +136,8 @@ class LabTestPanelDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestPanel]
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated, _READ_ROLES]
-        return [IsAuthenticated, _WRITE_ROLES]
+            return [IsAuthenticated(), _READ_ROLES()]
+        return [IsAuthenticated(), _WRITE_ROLES()]
 
     def get_queryset(self) -> QuerySet[LabTestPanel]:
         return LabTestPanel.objects.prefetch_related("tests__unit", "tests__reference_ranges")
@@ -170,20 +166,20 @@ class LabTestPanelDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestPanel]
 class LabTestDefinitionListCreateView(generics.ListCreateAPIView[LabTestDefinition]):
     search_fields = ["code", "name", "abbreviation", "loinc_code", "snomed_code"]
     filterset_fields = [
-        "panel", "result_type",
+        "panels", "result_type",
         "is_active", "requires_validation", "reportable",
     ]
     ordering_fields = ["sort_order", "name", "code", "turnaround_hours"]
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated, _READ_ROLES]
-        return [IsAuthenticated, _WRITE_ROLES]
+            return [IsAuthenticated(), _READ_ROLES()]
+        return [IsAuthenticated(), _WRITE_ROLES()]
 
     def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
             LabTestDefinition.objects
-            .select_related("unit", "panel")
+            .select_related("unit")
             .prefetch_related("reference_ranges")
         )
 
@@ -200,7 +196,7 @@ class LabTestDefinitionListCreateView(generics.ListCreateAPIView[LabTestDefiniti
         test: LabTestDefinition = serializer.save()
         output = LabTestDefinitionDetailSerializer(
             LabTestDefinition.objects
-            .select_related("unit", "panel")
+            .select_related("unit")
             .prefetch_related("reference_ranges")
             .get(pk=test.pk)
         )
@@ -218,13 +214,13 @@ class LabTestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestD
 
     def get_permissions(self) -> list[Any]:
         if self.request.method in ("GET", "HEAD", "OPTIONS"):
-            return [IsAuthenticated, _READ_ROLES]
-        return [IsAuthenticated, _WRITE_ROLES]
+            return [IsAuthenticated(), _READ_ROLES()]
+        return [IsAuthenticated(), _WRITE_ROLES()]
 
     def get_queryset(self) -> QuerySet[LabTestDefinition]:
         return (
             LabTestDefinition.objects
-            .select_related("unit", "panel")
+            .select_related("unit")
             .prefetch_related("reference_ranges")
         )
 
@@ -243,7 +239,7 @@ class LabTestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestD
         updated = serializer.save()
         output = LabTestDefinitionDetailSerializer(
             LabTestDefinition.objects
-            .select_related("unit", "panel")
+            .select_related("unit")
             .prefetch_related("reference_ranges")
             .get(pk=updated.pk)
         )
