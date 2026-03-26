@@ -71,13 +71,12 @@ class ReferenceRangeWriteSerializer(serializers.ModelSerializer[ReferenceRange])
 
 class LabTestDefinitionListSerializer(serializers.ModelSerializer[LabTestDefinition]):
     unit_symbol = serializers.CharField(source="unit.symbol", read_only=True, default=None)
-    panel_name = serializers.CharField(source="panel.name", read_only=True, default=None)
 
     class Meta:
         model = LabTestDefinition
         fields = [
             "id", "code", "name", "abbreviation", "loinc_code",
-            "result_type", "unit_symbol", "panel_name",
+            "result_type", "unit_symbol",
             "turnaround_hours", "is_active",
         ]
         read_only_fields = fields
@@ -86,7 +85,6 @@ class LabTestDefinitionListSerializer(serializers.ModelSerializer[LabTestDefinit
 class LabTestDefinitionDetailSerializer(serializers.ModelSerializer[LabTestDefinition]):
     unit = UnitSerializer(read_only=True)
     reference_ranges = ReferenceRangeSerializer(many=True, read_only=True)
-    panel_name = serializers.CharField(source="panel.name", read_only=True, default=None)
 
     class Meta:
         model = LabTestDefinition
@@ -98,11 +96,11 @@ class LabTestDefinitionDetailSerializer(serializers.ModelSerializer[LabTestDefin
             "turnaround_hours", "method", "instrument",
             "requires_validation", "reportable", "is_active", "sort_order",
             "price", "allowed_values",
-            "panel", "panel_name",
+            "panels",
             "reference_ranges",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["id", "panel_name", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class LabTestDefinitionWriteSerializer(serializers.ModelSerializer[LabTestDefinition]):
@@ -118,7 +116,7 @@ class LabTestDefinitionWriteSerializer(serializers.ModelSerializer[LabTestDefini
             "turnaround_hours", "method", "instrument",
             "price", "allowed_values",
             "requires_validation", "reportable", "is_active", "sort_order",
-            "panel", "reference_ranges",
+            "panels", "reference_ranges",
         ]
 
     def validate_allowed_values(self, value: list[Any]) -> list[Any]:
@@ -171,6 +169,7 @@ class LabTestPanelListSerializer(serializers.ModelSerializer[LabTestPanel]):
             "loinc_code",
             "is_active",
             "price",
+            "test_count",
         ]
         read_only_fields = fields
 
@@ -189,6 +188,7 @@ class LabTestPanelDetailSerializer(serializers.ModelSerializer[LabTestPanel]):
             "loinc_code",
             "is_active",
             "price",
+            "tests",
             "created_at", "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]

@@ -27,8 +27,8 @@ pytestmark = pytest.mark.django_db
 
 UNITS_URL = "/api/v1/catalog/units/"
 PANELS_URL = "/api/v1/catalog/panels/"
-TESTS_URL = "/api/v1/catalog/tests/"
-INTERPRET_URL = "/api/v1/catalog/tests/interpret/"
+TESTS_URL = "/api/v1/catalog/labtests/"
+INTERPRET_URL = "/api/v1/catalog/labtests/interpret/"
 
 
 def panel_url(pk: object) -> str:
@@ -36,7 +36,7 @@ def panel_url(pk: object) -> str:
 
 
 def test_url(pk: object) -> str:
-    return f"/api/v1/catalog/tests/{pk}/"
+    return f"/api/v1/catalog/labtests/{pk}/"
 
 
 # ── Units ─────────────────────────────────────────────────────────────────────
@@ -114,7 +114,7 @@ class TestLabTestPanelCRUD:
 
     def test_retrieve_panel_includes_tests(self, lab_analyst_client: APIClient) -> None:
         panel = LabTestPanelFactory()
-        LabTestDefinitionFactory.create_batch(3, panel=panel)
+        LabTestDefinitionFactory.create_batch(3, panels=[panel])
 
         resp = lab_analyst_client.get(panel_url(panel.id))
         assert resp.status_code == status.HTTP_200_OK

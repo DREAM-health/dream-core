@@ -120,7 +120,6 @@ class PatientDetailView(PatientQuerysetMixin, generics.RetrieveUpdateDestroyAPIV
 
     DELETE requires a reason in the request body (regulatory requirement).
     """
-
     permission_classes = [
         IsAuthenticated,
         HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.LAB_MANAGER, RoleType.RECEPTIONIST),

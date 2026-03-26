@@ -412,8 +412,12 @@ class TestPatientFacilityStub:
         # PROTECT means hard-deleting the Facility while patients reference it
         # raises a ProtectedError (not a soft-delete — that uses the SoftDeleteModel path).
         from django.db.models import ProtectedError
+        user = UserFactory(is_superuser=True)
         with pytest.raises(ProtectedError):
-            facility.hard_delete()
+            facility.hard_delete(
+                authorised_by=user,
+                authorisation_token="Testing PROTECT constraint"
+            )
 
     def test_soft_deleting_facility_does_not_affect_patients(self) -> None:
         """
