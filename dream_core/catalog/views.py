@@ -116,6 +116,7 @@ class LabTestPanelListCreateView(generics.ListCreateAPIView[LabTestPanel]):
             LabTestPanel.objects
             .annotate(test_count=Count("tests"))
             .prefetch_related("tests")
+            .order_by("name")
         )
 
     def get_serializer_class(self) -> Any:

@@ -31,11 +31,11 @@ TESTS_URL = "/api/v1/catalog/labtests/"
 INTERPRET_URL = "/api/v1/catalog/labtests/interpret/"
 
 
-def panel_url(pk: object) -> str:
+def get_panel_url(pk: object) -> str:
     return f"/api/v1/catalog/panels/{pk}/"
 
 
-def test_url(pk: object) -> str:
+def get_test_url(pk: object) -> str:
     return f"/api/v1/catalog/labtests/{pk}/"
 
 
@@ -116,13 +116,13 @@ class TestLabTestPanelCRUD:
         panel = LabTestPanelFactory()
         LabTestDefinitionFactory.create_batch(3, panels=[panel])
 
-        resp = lab_analyst_client.get(panel_url(panel.id))
+        resp = lab_analyst_client.get(get_panel_url(panel.id))
         assert resp.status_code == status.HTTP_200_OK
         assert len(resp.json()["tests"]) == 3
 
     def test_panel_soft_delete(self, lab_manager_client: APIClient) -> None:
         panel = LabTestPanelFactory()
-        resp = lab_manager_client.delete(panel_url(panel.id))
+        resp = lab_manager_client.delete(get_panel_url(panel.id))
         assert resp.status_code == status.HTTP_200_OK
 
         panel.refresh_from_db()
@@ -136,7 +136,7 @@ class TestLabTestPanelCRUD:
     def test_panel_update(self, lab_manager_client: APIClient) -> None:
         panel = LabTestPanelFactory(name="Old Name")
         resp = lab_manager_client.patch(
-            panel_url(panel.id), {"name": "Updated Panel Name"}, format="json"
+            get_panel_url(panel.id), {"name": "Updated Panel Name"}, format="json"
         )
         assert resp.status_code == status.HTTP_200_OK
         panel.refresh_from_db()
@@ -226,7 +226,7 @@ class TestLabTestDefinitionCRUD:
         ReferenceRangeFactory(test=test)
         ReferenceRangeFactory(test=test, gender="male")
 
-        resp = lab_analyst_client.get(test_url(test.id))
+        resp = lab_analyst_client.get(get_test_url(test.id))
         assert resp.status_code == status.HTTP_200_OK
         assert len(resp.json()["reference_ranges"]) == 2
 
@@ -249,13 +249,13 @@ class TestLabTestDefinitionCRUD:
                 }
             ]
         }
-        resp = lab_manager_client.patch(test_url(test.id), payload, format="json")
+        resp = lab_manager_client.patch(get_test_url(test.id), payload, format="json")
         assert resp.status_code == status.HTTP_200_OK
         assert ReferenceRange.objects.filter(test=test).count() == 1
 
     def test_lab_test_soft_delete(self, lab_manager_client: APIClient) -> None:
         test = LabTestDefinitionFactory()
-        resp = lab_manager_client.delete(test_url(test.id))
+        resp = lab_manager_client.delete(get_test_url(test.id))
         assert resp.status_code == status.HTTP_200_OK
 
         test.refresh_from_db()
