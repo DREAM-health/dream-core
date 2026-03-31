@@ -14,6 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.urls import path, include
+from dream_core.health_check.views import health_check_view
 
 api_v1_patterns = [
     path('auth/',     include('dream_core.accounts.urls.auth')),
@@ -24,5 +25,7 @@ api_v1_patterns = [
 ]
 
 urlpatterns = [
-    path('api/v1/', include(api_v1_patterns)),
+    path('health-check/', health_check_view, name='health_check'),
+    
+    path('api/core/v1/', include(api_v1_patterns)),
 ]
