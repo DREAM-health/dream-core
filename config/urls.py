@@ -25,7 +25,6 @@ api_v1_patterns = [
 ]
 
 urlpatterns = [
-    path('health-check/', health_check_view, name='health_check'),
-    
+    path('health-check/', health_check_view),
     path('api/core/v1/', include(api_v1_patterns)),
 ]

@@ -4,18 +4,18 @@ dream_core/catalog/views.py
 Lab Test Catalog endpoints:
 
 Units:
-  GET/POST   /api/v1/catalog/units/
-  GET/PUT/PATCH/DELETE  /api/v1/catalog/units/{id}/
+  GET/POST   /api/core/v1/catalog/units/
+  GET/PUT/PATCH/DELETE  /api/core/v1/catalog/units/{id}/
 
 Panels:
-  GET/POST   /api/v1/catalog/panels/
-  GET/PUT/PATCH/DELETE  /api/v1/catalog/panels/{id}/
-  DELETE /api/v1/catalog/panels/{id}/  → soft-delete
+  GET/POST   /api/core/v1/catalog/panels/
+  GET/PUT/PATCH/DELETE  /api/core/v1/catalog/panels/{id}/
+  DELETE /api/core/v1/catalog/panels/{id}/  → soft-delete
 
 LabTests:
-  GET/POST   /api/v1/catalog/tests/
-  GET/PUT/PATCH/DELETE  /api/v1/catalog/tests/{id}/
-  POST /api/v1/catalog/tests/interpret/  → result interpretation
+  GET/POST   /api/core/v1/catalog/tests/
+  GET/PUT/PATCH/DELETE  /api/core/v1/catalog/tests/{id}/
+  POST /api/core/v1/catalog/tests/interpret/  → result interpretation
 """
 from decimal import Decimal
 from typing import Any
@@ -276,7 +276,7 @@ class LabTestDefinitionDetailView(generics.RetrieveUpdateDestroyAPIView[LabTestD
 @extend_schema(tags=["catalog"])
 class ResultInterpretationView(APIView):
     """
-    POST /api/v1/catalog/tests/interpret/
+    POST /api/core/v1/catalog/tests/interpret/
 
     Given a test code, numeric result value, patient age (days) and gender,
     return the correct reference range interpretation flag.

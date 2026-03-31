@@ -146,57 +146,57 @@ ruff format dream_core/ tests/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/auth/login/` | Obtain JWT access + refresh tokens |
-| POST | `/api/v1/auth/token/refresh/` | Refresh access token |
-| POST | `/api/v1/auth/logout/` | Blacklist refresh token |
-| POST | `/api/v1/auth/change-password/` | Change own password |
+| POST | `/api/core/v1/auth/login/` | Obtain JWT access + refresh tokens |
+| POST | `/api/core/v1/auth/token/refresh/` | Refresh access token |
+| POST | `/api/core/v1/auth/logout/` | Blacklist refresh token |
+| POST | `/api/core/v1/auth/change-password/` | Change own password |
 
 ### Accounts
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET | `/api/v1/accounts/me/` | Any authenticated |
-| PATCH | `/api/v1/accounts/me/` | Any authenticated |
-| GET | `/api/v1/accounts/users/` | ADMIN+ |
-| POST | `/api/v1/accounts/users/` | ADMIN+ |
-| GET/PUT/PATCH | `/api/v1/accounts/users/{id}/` | ADMIN+ |
-| DELETE | `/api/v1/accounts/users/{id}/` | ADMIN+ (deactivates, never deletes) |
-| GET/POST | `/api/v1/accounts/roles/` | SUPERADMIN |
-| GET/PUT/DELETE | `/api/v1/accounts/roles/{id}/` | SUPERADMIN |
+| GET | `/api/core/v1/accounts/me/` | Any authenticated |
+| PATCH | `/api/core/v1/accounts/me/` | Any authenticated |
+| GET | `/api/core/v1/accounts/users/` | ADMIN+ |
+| POST | `/api/core/v1/accounts/users/` | ADMIN+ |
+| GET/PUT/PATCH | `/api/core/v1/accounts/users/{id}/` | ADMIN+ |
+| DELETE | `/api/core/v1/accounts/users/{id}/` | ADMIN+ (deactivates, never deletes) |
+| GET/POST | `/api/core/v1/accounts/roles/` | SUPERADMIN |
+| GET/PUT/DELETE | `/api/core/v1/accounts/roles/{id}/` | SUPERADMIN |
 
 ### Patients (FHIR R4 Registry)
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET | `/api/v1/patients/` | Any clinical role |
-| POST | `/api/v1/patients/` | RECEPTIONIST, CLINICIAN, ADMIN+ |
-| GET | `/api/v1/patients/{id}/` | Any clinical role |
-| PUT/PATCH | `/api/v1/patients/{id}/` | CLINICIAN, ADMIN+ |
-| DELETE | `/api/v1/patients/{id}/` | CLINICIAN, ADMIN+ (soft-delete, reason required) |
-| POST | `/api/v1/patients/fhir/` | RECEPTIONIST, CLINICIAN, ADMIN+ |
-| GET | `/api/v1/patients/{id}/fhir/` | Any clinical role |
-| PUT | `/api/v1/patients/{id}/fhir/` | CLINICIAN, ADMIN+ |
-| GET | `/api/v1/patients/deleted/` | ADMIN+ |
-| POST | `/api/v1/patients/{id}/restore/` | ADMIN+ |
+| GET | `/api/core/v1/patients/` | Any clinical role |
+| POST | `/api/core/v1/patients/` | RECEPTIONIST, CLINICIAN, ADMIN+ |
+| GET | `/api/core/v1/patients/{id}/` | Any clinical role |
+| PUT/PATCH | `/api/core/v1/patients/{id}/` | CLINICIAN, ADMIN+ |
+| DELETE | `/api/core/v1/patients/{id}/` | CLINICIAN, ADMIN+ (soft-delete, reason required) |
+| POST | `/api/core/v1/patients/fhir/` | RECEPTIONIST, CLINICIAN, ADMIN+ |
+| GET | `/api/core/v1/patients/{id}/fhir/` | Any clinical role |
+| PUT | `/api/core/v1/patients/{id}/fhir/` | CLINICIAN, ADMIN+ |
+| GET | `/api/core/v1/patients/deleted/` | ADMIN+ |
+| POST | `/api/core/v1/patients/{id}/restore/` | ADMIN+ |
 
 ### Test Catalog
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET/POST | `/api/v1/catalog/units/` | GET: any clinical; POST: LAB_MANAGER+ |
-| GET/POST | `/api/v1/catalog/panels/` | GET: any clinical; POST: LAB_MANAGER+ |
-| GET/PATCH/DELETE | `/api/v1/catalog/panels/{id}/` | GET: any; write: LAB_MANAGER+ |
-| GET/POST | `/api/v1/catalog/labtests/` | GET: any clinical; POST: LAB_MANAGER+ |
-| GET/PATCH/DELETE | `/api/v1/catalog/labtests/{id}/` | GET: any; write: LAB_MANAGER+ |
-| POST | `/api/v1/catalog/labtests/interpret/` | Any clinical role |
+| GET/POST | `/api/core/v1/catalog/units/` | GET: any clinical; POST: LAB_MANAGER+ |
+| GET/POST | `/api/core/v1/catalog/panels/` | GET: any clinical; POST: LAB_MANAGER+ |
+| GET/PATCH/DELETE | `/api/core/v1/catalog/panels/{id}/` | GET: any; write: LAB_MANAGER+ |
+| GET/POST | `/api/core/v1/catalog/labtests/` | GET: any clinical; POST: LAB_MANAGER+ |
+| GET/PATCH/DELETE | `/api/core/v1/catalog/labtests/{id}/` | GET: any; write: LAB_MANAGER+ |
+| POST | `/api/core/v1/catalog/labtests/interpret/` | Any clinical role |
 
 ### Audit
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET | `/api/v1/audit/logs/` | AUDITOR, ADMIN, SUPERADMIN |
-| GET | `/api/v1/audit/logs/{id}/` | AUDITOR, ADMIN, SUPERADMIN |
-| GET | `/api/v1/audit/logs/object/{app}/{model}/{pk}/` | AUDITOR, ADMIN, SUPERADMIN |
+| GET | `/api/core/v1/audit/logs/` | AUDITOR, ADMIN, SUPERADMIN |
+| GET | `/api/core/v1/audit/logs/{id}/` | AUDITOR, ADMIN, SUPERADMIN |
+| GET | `/api/core/v1/audit/logs/object/{app}/{model}/{pk}/` | AUDITOR, ADMIN, SUPERADMIN |
 
 ### Facilities (Phase 1)
 
@@ -205,7 +205,7 @@ ruff format dream_core/ tests/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| *TBD* | `/api/v1/facilities/` | Manage clinical & lab facilities (Phase 2) |
+| *TBD* | `/api/core/v1/facilities/` | Manage clinical & lab facilities (Phase 2) |
 
 ---
 

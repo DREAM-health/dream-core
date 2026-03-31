@@ -15,7 +15,7 @@ from tests.patients.factories import PatientFactory
 
 pytestmark = pytest.mark.django_db
 
-AUDIT_URL = "/api/v1/audit/logs/"
+AUDIT_URL = "/api/core/v1/audit/logs/"
 
 
 class TestAuditLogAccess:
@@ -83,7 +83,7 @@ class TestObjectAuditHistory:
     ) -> None:
         import uuid
         resp = auditor_client.get(
-            f"/api/v1/audit/logs/object/nonexistent/model/{uuid.uuid4()}/"
+            f"/api/core/v1/audit/logs/object/nonexistent/model/{uuid.uuid4()}/"
         )
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
@@ -92,7 +92,7 @@ class TestObjectAuditHistory:
     ) -> None:
         patient = PatientFactory()
         resp = auditor_client.get(
-            f"/api/v1/audit/logs/object/patients/patient/{patient.id}/"
+            f"/api/core/v1/audit/logs/object/patients/patient/{patient.id}/"
         )
         assert resp.status_code == status.HTTP_200_OK
         assert isinstance(resp.json(), list)

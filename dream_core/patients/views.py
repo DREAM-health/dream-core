@@ -4,21 +4,21 @@ dream_core/patients/views.py
 Patient Registry endpoints:
 
 Standard REST:
-  GET    /api/v1/patients/              — list (paginated, searchable)
-  POST   /api/v1/patients/              — create
-  GET    /api/v1/patients/{id}/         — retrieve
-  PUT    /api/v1/patients/{id}/         — full update
-  PATCH  /api/v1/patients/{id}/         — partial update
-  DELETE /api/v1/patients/{id}/         — soft-delete (requires reason)
+  GET    /api/core/v1/patients/              — list (paginated, searchable)
+  POST   /api/core/v1/patients/              — create
+  GET    /api/core/v1/patients/{id}/         — retrieve
+  PUT    /api/core/v1/patients/{id}/         — full update
+  PATCH  /api/core/v1/patients/{id}/         — partial update
+  DELETE /api/core/v1/patients/{id}/         — soft-delete (requires reason)
 
 FHIR R4:
-  GET    /api/v1/patients/{id}/fhir/    — retrieve as FHIR R4 Patient
-  POST   /api/v1/patients/fhir/         — create from FHIR R4 Patient document
-  PUT    /api/v1/patients/{id}/fhir/    — update from FHIR R4 Patient document
+  GET    /api/core/v1/patients/{id}/fhir/    — retrieve as FHIR R4 Patient
+  POST   /api/core/v1/patients/fhir/         — create from FHIR R4 Patient document
+  PUT    /api/core/v1/patients/{id}/fhir/    — update from FHIR R4 Patient document
 
 Admin:
-  GET    /api/v1/patients/deleted/      — list soft-deleted patients
-  POST   /api/v1/patients/{id}/restore/ — restore soft-deleted patient
+  GET    /api/core/v1/patients/deleted/      — list soft-deleted patients
+  POST   /api/core/v1/patients/{id}/restore/ — restore soft-deleted patient
 """
 from typing import Any
 
@@ -169,7 +169,7 @@ class PatientDetailView(PatientQuerysetMixin, generics.RetrieveUpdateDestroyAPIV
 @extend_schema(tags=["patients"])
 class FHIRPatientCreateView(APIView):
     """
-    POST /api/v1/patients/fhir/
+    POST /api/core/v1/patients/fhir/
 
     Create a patient from a FHIR R4 Patient resource document.
     The request body must be a valid FHIR R4 Patient JSON resource.
@@ -196,8 +196,8 @@ class FHIRPatientCreateView(APIView):
 @extend_schema(tags=["patients"])
 class FHIRPatientDetailView(APIView):
     """
-    GET  /api/v1/patients/{id}/fhir/  — Return patient as FHIR R4 resource
-    PUT  /api/v1/patients/{id}/fhir/  — Update patient from FHIR R4 resource
+    GET  /api/core/v1/patients/{id}/fhir/  — Return patient as FHIR R4 resource
+    PUT  /api/core/v1/patients/{id}/fhir/  — Update patient from FHIR R4 resource
     """
 
     permission_classes = [
@@ -244,7 +244,7 @@ class FHIRPatientDetailView(APIView):
 @extend_schema(tags=["patients"])
 class DeletedPatientListView(APIView):
     """
-    GET /api/v1/patients/deleted/
+    GET /api/core/v1/patients/deleted/
 
     List soft-deleted patient records. Admin/Auditor only.
     """
@@ -263,7 +263,7 @@ class DeletedPatientListView(APIView):
 @extend_schema(tags=["patients"])
 class PatientRestoreView(APIView):
     """
-    POST /api/v1/patients/{id}/restore/
+    POST /api/core/v1/patients/{id}/restore/
 
     Restore a soft-deleted patient record. Admin only.
     """

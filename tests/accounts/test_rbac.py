@@ -16,7 +16,7 @@ pytestmark = pytest.mark.django_db
 
 
 class TestUserManagement:
-    LIST_URL = "/api/v1/accounts/users/"
+    LIST_URL = "/api/core/v1/accounts/users/"
 
     def test_admin_can_list_users(self, admin_client: APIClient) -> None:
         resp = admin_client.get(self.LIST_URL)
@@ -58,7 +58,7 @@ class TestUserManagement:
         self, admin_client: APIClient, admin_user: User
     ) -> None:
         target = UserFactory()
-        url = f"/api/v1/accounts/users/{target.id}/"
+        url = f"/api/core/v1/accounts/users/{target.id}/"
 
         resp = admin_client.delete(url)
 
@@ -70,7 +70,7 @@ class TestUserManagement:
 
 
 class TestRoleManagement:
-    LIST_URL = "/api/v1/accounts/roles/"
+    LIST_URL = "/api/core/v1/accounts/roles/"
 
     def test_superadmin_can_manage_roles(self, superadmin_client: APIClient) -> None:
         resp = superadmin_client.get(self.LIST_URL)
@@ -90,13 +90,13 @@ class TestRoleManagement:
     def test_cannot_delete_system_role(
         self, superadmin_client: APIClient, roles: dict
     ) -> None:
-        url = f"/api/v1/accounts/roles/{roles['ADMIN'].id}/"
+        url = f"/api/core/v1/accounts/roles/{roles['ADMIN'].id}/"
         resp = superadmin_client.delete(url)
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
     def test_can_delete_non_system_role(self, superadmin_client: APIClient) -> None:
         role = RoleFactory(is_system=False)
-        url = f"/api/v1/accounts/roles/{role.id}/"
+        url = f"/api/core/v1/accounts/roles/{role.id}/"
         resp = superadmin_client.delete(url)
         assert resp.status_code == status.HTTP_204_NO_CONTENT
 

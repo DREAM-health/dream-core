@@ -25,18 +25,18 @@ from tests.catalog.factories import (
 
 pytestmark = pytest.mark.django_db
 
-UNITS_URL = "/api/v1/catalog/units/"
-PANELS_URL = "/api/v1/catalog/panels/"
-TESTS_URL = "/api/v1/catalog/labtests/"
-INTERPRET_URL = "/api/v1/catalog/labtests/interpret/"
+UNITS_URL = "/api/core/v1/catalog/units/"
+PANELS_URL = "/api/core/v1/catalog/panels/"
+TESTS_URL = "/api/core/v1/catalog/labtests/"
+INTERPRET_URL = "/api/core/v1/catalog/labtests/interpret/"
 
 
 def get_panel_url(pk: object) -> str:
-    return f"/api/v1/catalog/panels/{pk}/"
+    return f"/api/core/v1/catalog/panels/{pk}/"
 
 
 def get_test_url(pk: object) -> str:
-    return f"/api/v1/catalog/labtests/{pk}/"
+    return f"/api/core/v1/catalog/labtests/{pk}/"
 
 
 # ── Units ─────────────────────────────────────────────────────────────────────

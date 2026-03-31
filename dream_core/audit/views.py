@@ -4,9 +4,9 @@ dream_core/audit/views.py
 Read-only API over AuditEvent (proxy over django-auditlog's LogEntry).
 
 Endpoints:
-  GET /api/v1/audit/logs/                  — list all log entries (paginated)
-  GET /api/v1/audit/logs/{id}/             — retrieve single entry
-  GET /api/v1/audit/logs/object/{ct}/{pk}/ — all logs for a specific object
+  GET /api/core/v1/audit/logs/                  — list all log entries (paginated)
+  GET /api/core/v1/audit/logs/{id}/             — retrieve single entry
+  GET /api/core/v1/audit/logs/object/{ct}/{pk}/ — all logs for a specific object
 
 Access: AUDITOR, ADMIN, SUPERADMIN only (read-only, no mutations).
 
@@ -92,7 +92,7 @@ class AuditLogPagination(PageNumberPagination):
 @extend_schema(tags=["audit"])
 class AuditLogListView(APIView):
     """
-    GET /api/v1/audit/logs/
+    GET /api/core/v1/audit/logs/
 
     List audit log entries with filtering.
 
@@ -157,7 +157,7 @@ class AuditLogListView(APIView):
 
 @extend_schema(tags=["audit"])
 class AuditLogDetailView(APIView):
-    """GET /api/v1/audit/logs/{id}/ — retrieve a single audit event."""
+    """GET /api/core/v1/audit/logs/{id}/ — retrieve a single audit event."""
 
     permission_classes = [IsAuthenticated, IsAuditor]
 
@@ -174,7 +174,7 @@ class AuditLogDetailView(APIView):
 @extend_schema(tags=["audit"])
 class ObjectAuditLogView(APIView):
     """
-    GET /api/v1/audit/logs/object/{app_label}/{model}/{object_pk}/
+    GET /api/core/v1/audit/logs/object/{app_label}/{model}/{object_pk}/
 
     All audit log entries for a specific object instance.
     Useful for a "history" tab in the UI.

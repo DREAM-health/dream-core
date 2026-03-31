@@ -24,15 +24,15 @@ from tests.patients.factories import (
 
 pytestmark = pytest.mark.django_db
 
-LIST_URL = "/api/v1/patients/"
+LIST_URL = "/api/core/v1/patients/"
 
 
 def detail_url(patient_id: object) -> str:
-    return f"/api/v1/patients/{patient_id}/"
+    return f"/api/core/v1/patients/{patient_id}/"
 
 
 def fhir_detail_url(patient_id: object) -> str:
-    return f"/api/v1/patients/{patient_id}/fhir/"
+    return f"/api/core/v1/patients/{patient_id}/fhir/"
 
 
 # ── List ──────────────────────────────────────────────────────────────────────
@@ -301,7 +301,7 @@ class TestPatientRestore:
         patient = PatientFactory()
         patient.delete(reason="Deleted for restore test")
 
-        resp = admin_client.post(f"/api/v1/patients/{patient.id}/restore/")
+        resp = admin_client.post(f"/api/core/v1/patients/{patient.id}/restore/")
         assert resp.status_code == status.HTTP_200_OK
 
         patient.refresh_from_db()
@@ -311,38 +311,38 @@ class TestPatientRestore:
 
     def test_restore_nonexistent_returns_404(self, admin_client: APIClient) -> None:
         import uuid
-        resp = admin_client.post(f"/api/v1/patients/{uuid.uuid4()}/restore/")
+        resp = admin_client.post(f"/api/core/v1/patients/{uuid.uuid4()}/restore/")
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
     def test_restore_active_patient_returns_404(self, admin_client: APIClient) -> None:
         # Restoring a non-deleted patient should 404 (only finds deleted ones)
         patient = PatientFactory()
-        resp = admin_client.post(f"/api/v1/patients/{patient.id}/restore/")
+        resp = admin_client.post(f"/api/core/v1/patients/{patient.id}/restore/")
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
     def test_clinician_cannot_restore_patient(self, clinician_client: APIClient) -> None:
         patient = PatientFactory()
         patient.delete(reason="Deleted for test")
-        resp = clinician_client.post(f"/api/v1/patients/{patient.id}/restore/")
+        resp = clinician_client.post(f"/api/core/v1/patients/{patient.id}/restore/")
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
     def test_deleted_list_visible_to_admin(self, admin_client: APIClient) -> None:
         patient = PatientFactory()
         patient.delete(reason="Test deletion for listing")
-        resp = admin_client.get("/api/v1/patients/deleted/")
+        resp = admin_client.get("/api/core/v1/patients/deleted/")
         assert resp.status_code == status.HTTP_200_OK
         ids = [p["id"] for p in resp.json()]
         assert str(patient.id) in ids
 
     def test_deleted_list_hidden_from_clinician(self, clinician_client: APIClient) -> None:
-        resp = clinician_client.get("/api/v1/patients/deleted/")
+        resp = clinician_client.get("/api/core/v1/patients/deleted/")
         assert resp.status_code == status.HTTP_403_FORBIDDEN
 
 
 # ── FHIR R4 ───────────────────────────────────────────────────────────────────
 
 class TestFHIRPatient:
-    FHIR_CREATE_URL = "/api/v1/patients/fhir/"
+    FHIR_CREATE_URL = "/api/core/v1/patients/fhir/"
 
     def _fhir_payload(self, **overrides: object) -> dict:
         base: dict = {
