@@ -13,6 +13,7 @@ Design:
 - FHIR R4 serialisation/deserialisation is handled in fhir_utils.py.
 - django-auditlog is registered for all models.
 """
+from django.conf import settings
 from django.db import models
 from auditlog.registry import auditlog
 
@@ -56,6 +57,34 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
         help_text="Date of death if applicable.",
     )
 
+    # ── Project-specific IDs ──────────────────────────────────────────────────
+    id_patient: models.CharField = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        db_index=True,
+        help_text="Internal patient identifier assigned by the clinical system.",
+    )
+    id_dream: models.CharField = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        db_index=True,
+        help_text="DREAM programme identifier for cross-system linkage.",
+    )
+
+    # ── Caregiver ─────────────────────────────────────────────────────────────
+    caregiver_name: models.CharField = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Full name of primary caregiver or legal guardian.",
+    )
+    caregiver_contact: models.CharField = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Phone or email of the caregiver (free-text; use PatientContact for structured data).",
+    )
+
     # ── Contact ───────────────────────────────────────────────────────────────
     email: models.EmailField = models.EmailField(blank=True, db_index=True)
 
@@ -71,6 +100,19 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
     notes: models.TextField = models.TextField(
         blank=True,
         help_text="General clinical notes. Sensitive — access controlled.",
+    )
+
+    # ── Obstetric status (female patients only) ───────────────────────────────
+    # Tri-state: True = yes, False = no, None = not applicable / unknown.
+    is_pregnant: models.BooleanField = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Current pregnancy status. Null = not applicable or unknown.",
+    )
+    is_breastfeeding: models.BooleanField = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Current breastfeeding status. Null = not applicable or unknown.",
     )
 
     # ── Facility (Phase 2 tenancy stub) ───────────────────────────────────────
@@ -218,7 +260,123 @@ class PatientContact(models.Model):
         return f"{self.get_system_display()}: {self.value}"
 
 
+class DataConsent(SoftDeleteModel):
+    """
+    Records a patient's consent to personal data processing.
+ 
+    Design:
+    - One active consent per patient at any time; previous consents are retained
+      for audit (soft-delete only, never physically removed).
+    - `version` tracks the consent document / form revision so that re-consent
+      can be triggered when the terms change.
+    - `consented_at` is set explicitly (not auto_now_add) to capture the actual
+      moment of signing, which may differ from the DB insertion time (e.g. paper
+      forms scanned later).
+    - Maps loosely to FHIR R4 Consent resource.
+ 
+    Compliance note:
+    - GDPR Art. 7 / LGPD Art. 8: consent must be freely given, specific,
+      informed, and unambiguous. Revocation must be as easy as giving consent.
+    - To revoke: call consent.revoke(revoked_by=user, reason="...") which sets
+      `is_active=False` and records the revocation details without deleting the record.
+    """
+ 
+    class ConsentScope(models.TextChoices):
+        RESEARCH = "research", "Research"
+        TREATMENT = "treatment", "Treatment"
+        PATIENT_PRIVACY = "patient-privacy", "Patient Privacy"
+        FULL = "full", "Full (Research + Treatment + Privacy)"
+ 
+    patient: models.ForeignKey = models.ForeignKey(
+        Patient,
+        on_delete=models.PROTECT,
+        related_name="consents",
+        help_text="The patient this consent record belongs to.",
+    )
+ 
+    # ── Consent details ───────────────────────────────────────────────────────
+    scope: models.CharField = models.CharField(
+        max_length=30,
+        choices=ConsentScope.choices,
+        default=ConsentScope.FULL,
+        help_text="Scope of data processing covered by this consent.",
+    )
+    version: models.CharField = models.CharField(
+        max_length=50,
+        help_text="Consent form / document version (e.g. 'v2.1', '2024-01').",
+    )
+    consented_at: models.DateTimeField = models.DateTimeField(
+        help_text="Datetime when the patient signed / confirmed consent.",
+    )
+    is_active: models.BooleanField = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="False = consent has been revoked.",
+    )
+ 
+    # ── Revocation ────────────────────────────────────────────────────────────
+    revoked_at: models.DateTimeField = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Datetime when the consent was revoked.",
+    )
+    revoked_by: models.ForeignKey = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="consents_revoked",
+        help_text="User who processed the revocation.",
+    )
+    revocation_reason: models.TextField = models.TextField(
+        blank=True,
+        help_text="Reason or reference for revocation (e.g. patient request, GDPR Art.7).",
+    )
+ 
+    # ── Collection metadata ───────────────────────────────────────────────────
+    collected_by: models.ForeignKey = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="consents_collected",
+        help_text="Staff member who collected the consent.",
+    )
+    collection_method: models.CharField = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="How consent was obtained (e.g. 'paper', 'electronic', 'verbal').",
+    )
+    notes: models.TextField = models.TextField(blank=True)
+ 
+    class Meta:
+        verbose_name = "Data Consent"
+        verbose_name_plural = "Data Consents"
+        ordering = ["-consented_at"]
+        indexes = [
+            models.Index(fields=["patient", "is_active"]),
+            models.Index(fields=["patient", "scope", "is_active"]),
+        ]
+ 
+    def __str__(self) -> str:
+        status = "active" if self.is_active else "revoked"
+        return f"Consent [{self.get_scope_display()} v{self.version}] — {self.patient} ({status})"
+ 
+    def revoke(self, revoked_by=None, reason: str = "") -> None:
+        """
+        Revoke this consent. Does not soft-delete — the record must be retained.
+        """
+        from django.utils import timezone
+        self.is_active = False
+        self.revoked_at = timezone.now()
+        if revoked_by is not None:
+            self.revoked_by = revoked_by
+        if reason:
+            self.revocation_reason = reason
+        self.save(update_fields=[
+            "is_active", "revoked_at", "revoked_by", "revocation_reason", "updated_at"
+        ])
+
+
 # ── Auditlog registration ─────────────────────────────────────────────────────
 auditlog.register(Patient)
 auditlog.register(PatientIdentifier)
 auditlog.register(PatientContact)
+auditlog.register(DataConsent)

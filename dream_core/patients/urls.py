@@ -1,5 +1,7 @@
 from django.urls import path
 from dream_core.patients.views import (
+    DataConsentListCreateView,
+    DataConsentRevokeView,
     DeletedPatientListView,
     FHIRPatientCreateView,
     FHIRPatientDetailView,
@@ -16,6 +18,10 @@ urlpatterns = [
     # FHIR R4
     path("fhir/", FHIRPatientCreateView.as_view(), name="patient-fhir-create"),
     path("<uuid:pk>/fhir/", FHIRPatientDetailView.as_view(), name="patient-fhir-detail"),
+
+    # DataConsent
+    path("<uuid:pk>/consents/", DataConsentListCreateView.as_view(), name="patient-consent-list"),
+    path("consents/<uuid:consent_id>/revoke/", DataConsentRevokeView.as_view(), name="patient-consent-revoke"),
 
     # Admin
     path("deleted/", DeletedPatientListView.as_view(), name="patient-deleted-list"),

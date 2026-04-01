@@ -10,7 +10,7 @@ from typing import Any
 from rest_framework import serializers
 
 from dream_core.patients.fhir_utils import fhir_to_patient_data, patient_to_fhir
-from dream_core.patients.models import Patient, PatientContact, PatientIdentifier
+from dream_core.patients.models import DataConsent, Patient, PatientContact, PatientIdentifier
 
 
 # ── Sub-resource serializers ──────────────────────────────────────────────────
@@ -38,6 +38,7 @@ class PatientListSerializer(serializers.ModelSerializer[Patient]):
         fields = [
             "id", "full_name", "family_name", "given_names",
             "birth_date", "gender", "email", "is_active",
+            "id_patient", "id_dream",
             "identifiers", "created_at",
         ]
         read_only_fields = fields
@@ -55,6 +56,9 @@ class PatientDetailSerializer(serializers.ModelSerializer[Patient]):
         fields = [
             "id", "full_name", "family_name", "given_names",
             "birth_date", "gender", "email",
+            "id_patient", "id_dream",
+            "caregiver_name", "caregiver_contact",
+            "is_pregnant", "is_breastfeeding",
             "blood_type", "allergies_notes", "notes",
             "address", "is_active",
             "identifiers", "contacts",
@@ -73,9 +77,21 @@ class PatientWriteSerializer(serializers.ModelSerializer[Patient]):
         model = Patient
         fields = [
             "family_name", "given_names", "birth_date", "gender",
-            "email", "blood_type", "allergies_notes", "notes",
+            "email", "id_patient", "id_dream",
+            "caregiver_name", "caregiver_contact",
+            "is_pregnant", "is_breastfeeding",
+            "blood_type", "allergies_notes", "notes",
             "address", "identifiers", "contacts",
         ]
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        gender = attrs.get("gender") or getattr(self.instance, "gender", None)
+        for field in ("is_pregnant", "is_breastfeeding"):
+            if attrs.get(field) is True and gender != "female":
+                raise serializers.ValidationError(
+                    {field: "Only applicable to patients with gender 'female'."}
+                )
+        return attrs
 
     def _upsert_identifiers(self, patient: Patient, identifiers: list[dict[str, Any]]) -> None:
         existing_ids = {(i.system, i.value) for i in patient.identifiers.all()}
@@ -179,4 +195,47 @@ class PatientSoftDeleteSerializer(serializers.Serializer[Patient]):
         required=True,
         min_length=10,
         help_text="Mandatory reason for deactivating this patient record.",
+    )
+
+
+# ── DataConsent serializers ───────────────────────────────────────────────────
+ 
+class DataConsentSerializer(serializers.ModelSerializer[DataConsent]):
+    """Read serializer for DataConsent."""
+ 
+    class Meta:
+        model = DataConsent
+        fields = [
+            "id", "patient", "scope", "version",
+            "consented_at", "is_active",
+            "revoked_at", "revoked_by", "revocation_reason",
+            "collected_by", "collection_method", "notes",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = [
+            "id", "is_active", "revoked_at", "revoked_by",
+            "created_at", "updated_at",
+        ]
+ 
+ 
+class DataConsentWriteSerializer(serializers.ModelSerializer[DataConsent]):
+    """Write serializer for creating a new consent record."""
+ 
+    class Meta:
+        model = DataConsent
+        fields = [
+            "scope", "version", "consented_at",
+            "collected_by", "collection_method", "notes",
+        ]
+ 
+    def create(self, validated_data: dict[str, Any]) -> DataConsent:
+        # patient is injected by the view via validated_data
+        return DataConsent.objects.create(**validated_data)
+ 
+ 
+class DataConsentRevokeSerializer(serializers.Serializer[DataConsent]):
+    reason = serializers.CharField(
+        required=True,
+        min_length=10,
+        help_text="Mandatory reason for revoking consent (e.g. GDPR Art.7 request).",
     )

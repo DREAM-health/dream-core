@@ -16,6 +16,11 @@ FHIR R4:
   POST   /api/core/v1/patients/fhir/         — create from FHIR R4 Patient document
   PUT    /api/core/v1/patients/{id}/fhir/    — update from FHIR R4 Patient document
 
+DataConsent:
+  GET    /api/core/v1/patients/{id}/consents/                — list consents
+  POST   /api/core/v1/patients/{id}/consents/                — create consent
+  POST   /api/core/v1/patients/consents/{consent_id}/revoke/ — revoke consent  
+
 Admin:
   GET    /api/core/v1/patients/deleted/      — list soft-deleted patients
   POST   /api/core/v1/patients/{id}/restore/ — restore soft-deleted patient
@@ -31,8 +36,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dream_core.accounts.permissions import HasAnyRole, IsAdmin
-from dream_core.patients.models import Patient
+from dream_core.patients.models import DataConsent, Patient
 from dream_core.patients.serializers import (
+    DataConsentRevokeSerializer,
+    DataConsentSerializer,
+    DataConsentWriteSerializer,
     FHIRPatientSerializer,
     PatientDetailSerializer,
     PatientListSerializer,
@@ -63,8 +71,10 @@ class PatientQuerysetMixin:
     get=extend_schema(
         summary="List patients",
         parameters=[
-            OpenApiParameter("search", str, description="Search by name, email, or identifier value"),
+            OpenApiParameter("search", str, description="Search by name, email, id_patient, or id_dream"),
             OpenApiParameter("is_active", bool, description="Filter by active status"),
+            OpenApiParameter("is_pregnant", bool, description="Filter by pregnancy status"),
+            OpenApiParameter("is_breastfeeding", bool, description="Filter by breastfeeding status"),
         ],
     ),
     post=extend_schema(summary="Create patient"),
@@ -87,9 +97,10 @@ class PatientListCreateView(PatientQuerysetMixin, generics.ListCreateAPIView[Pat
                 HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.LAB_MANAGER, RoleType.LAB_ANALYST, RoleType.RECEPTIONIST),
             ]
         return super().get_permissions()
-    filterset_fields = ["gender", "is_active", "blood_type"]
+    filterset_fields = ["gender", "is_active", "blood_type", "is_pregnant", "is_breastfeeding"]
     search_fields = [
         "family_name", "given_names", "email",
+        "id_patient", "id_dream",
         "identifiers__value",
     ]
     ordering_fields = ["family_name", "birth_date", "created_at"]
@@ -237,6 +248,74 @@ class FHIRPatientDetailView(APIView):
         updated: Patient = serializer.save()
         output = FHIRPatientSerializer(updated)
         return Response(output.data)
+
+ 
+# ── DataConsent views ─────────────────────────────────────────────────────────
+ 
+@extend_schema(tags=["patients"])
+@extend_schema_view(
+    get=extend_schema(summary="List consents for a patient"),
+    post=extend_schema(summary="Record a new consent for a patient"),
+)
+class DataConsentListCreateView(APIView):
+    """
+    GET  /api/core/v1/patients/{pk}/consents/
+    POST /api/core/v1/patients/{pk}/consents/
+    """
+ 
+    permission_classes = [
+        IsAuthenticated,
+        HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.RECEPTIONIST),
+    ]
+ 
+    def _get_patient(self, pk: str) -> Patient:
+        return Patient.objects.get(pk=pk)
+ 
+    def get(self, request: Request, pk: str, *args: Any, **kwargs: Any) -> Response:
+        from django.http import Http404
+        try:
+            patient = self._get_patient(pk)
+        except Patient.DoesNotExist:
+            raise Http404
+        consents = DataConsent.objects.filter(patient=patient).select_related("revoked_by", "collected_by")
+        return Response(DataConsentSerializer(consents, many=True).data)
+ 
+    def post(self, request: Request, pk: str, *args: Any, **kwargs: Any) -> Response:
+        from django.http import Http404
+        try:
+            patient = self._get_patient(pk)
+        except Patient.DoesNotExist:
+            raise Http404
+        serializer = DataConsentWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        consent: DataConsent = serializer.save(patient=patient)
+        return Response(DataConsentSerializer(consent).data, status=status.HTTP_201_CREATED)
+ 
+ 
+@extend_schema(tags=["patients"])
+class DataConsentRevokeView(APIView):
+    """
+    POST /api/core/v1/patients/consents/{consent_id}/revoke/
+    """
+ 
+    permission_classes = [
+        IsAuthenticated,
+        HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN),
+    ]
+ 
+    @extend_schema(summary="Revoke a patient data consent")
+    def post(self, request: Request, consent_id: str, *args: Any, **kwargs: Any) -> Response:
+        from django.http import Http404
+        try:
+            consent = DataConsent.objects.get(pk=consent_id, is_active=True)
+        except DataConsent.DoesNotExist:
+            raise Http404
+        serializer = DataConsentRevokeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        consent.revoke(revoked_by=request.user, reason=serializer.validated_data["reason"])
+        return Response(DataConsentSerializer(consent).data)
+ 
+ 
 
 
 # ── Admin views ───────────────────────────────────────────────────────────────
