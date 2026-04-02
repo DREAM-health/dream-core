@@ -13,7 +13,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from dream_core.accounts.models import User
-from tests.accounts.factories import UserFactory
+from dream_core.testing.factories.accounts import UserFactory
 
 
 pytestmark = pytest.mark.django_db

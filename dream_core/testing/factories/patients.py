@@ -1,5 +1,5 @@
 """
-tests/patients/factories.py — factory_boy factories for patients.
+dream_core/testing/factories/patients.py — factory_boy factories for patients.
 """
 import datetime
 

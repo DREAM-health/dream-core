@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 
 from dream_core.patients.fhir_utils import _SYSTEM_INTERNAL_UUID
 from dream_core.patients.models import DataConsent, Patient, PatientIdentifier
-from tests.patients.factories import (
+from dream_core.testing.factories.patients import (
     DataConsentFactory,
     PatientContactFactory,
     PatientFactory,
@@ -204,13 +204,8 @@ class TestPatientCreate:
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_receptionist_can_create_patient(self, db: None, roles: dict) -> None:
-        from tests.conftest import _authed_client
-        from tests.accounts.factories import UserFactory
-        user = UserFactory()
-        user.roles.add(roles["RECEPTIONIST"])
-        client = _authed_client(user)
-        resp = client.post(LIST_URL, self._payload(email="rec@test.com"), format="json")
+    def test_receptionist_can_create_patient(self, receptionist_client: APIClient) -> None:
+        resp = receptionist_client.post(LIST_URL, self._payload(email="rec@test.com"), format="json")
         assert resp.status_code == status.HTTP_201_CREATED
 
     def test_lab_analyst_cannot_create_patient(self, lab_analyst_client: APIClient) -> None:

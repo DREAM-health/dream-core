@@ -1,3 +1,6 @@
+"""
+dream_core/testing/factories/facilities.py — factory_boy factories for the test facilities.
+"""
 import factory
 from factory.django import DjangoModelFactory
 
@@ -20,6 +23,6 @@ class FacilityMembershipFactory(DjangoModelFactory):
     class Meta:
         model = FacilityMembership
 
-    user = factory.SubFactory("tests.accounts.factories.UserFactory")
+    user = factory.SubFactory("dream_core.testing.factories.accounts.UserFactory")
     facility = factory.SubFactory(FacilityFactory)
     is_primary = True

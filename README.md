@@ -29,7 +29,7 @@ dream-core/
 │   │   ├── serializers.py
 │   │   └── views.py
 │   │
-│   ├── catalog/                # LabTest Catalog (MedLIMS)
+│   ├── catalog/                # LabTest Catalog
 │   │   ├── models.py           # Unit, LabTestPanel, LabTestDefinition, ReferenceRange
 │   │   ├── serializers.py
 │   │   ├── views.py            # Includes result interpretation engine
@@ -38,15 +38,29 @@ dream-core/
 │   └── audit/                  # Audit log query API
 │   │   └── views.py            # Read-only over django-auditlog LogEntry
 │   │
-│   └── facilities/             # Multi-tenancy & Facility Management (Phase 1 Stub)
-│       ├── models.py           # Facility, FacilityMembership
-│       └── mixins.py           # FacilityFilterMixin, FacilityRequiredMixin
-│  
+│   ├── facilities/             # Multi-tenancy & Facility Management (Phase 1 Stub)
+│   │   ├── admin.py            # FacilityMembershipAdmin, FacilityAdmin, FacilityMembershipInline
+│   │   ├── apps.py             # FacilitiesConfig
+│   │   ├── models.py           # Facility, FacilityMembership
+│   │   └── mixins.py           # FacilityFilterMixin, FacilityRequiredMixin
+│   │
+│   ├── health_check/           # Robust health check module
+│   │   └── views.py            
+│   │
+│   └── testing/                # ...
+│       ├── factories/          # ...
+│       │    ├── accounts.py    # ...
+│       │    ├── catalog.py     # ...
+│       │    ├── facilities.py  # ...
+│       │    └── patients.py    # ...
+│       └── fixtures/           # ...
+│           └── conftest.py     # Shared fixtures + API clients per role
 └── tests/
-    ├── conftest.py             # Shared fixtures + API clients per role
+    ├── conftest.py             # Only import from dream_core.testing.fixtures
     ├── accounts/               # Auth + RBAC tests
     ├── patients/               # Patient CRUD + soft-delete + FHIR tests
     ├── catalog/                # Catalog CRUD + interpretation tests
+    ├── health_check/
     └── audit/                  # Audit log access tests
 ```
 

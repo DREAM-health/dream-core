@@ -12,7 +12,7 @@ import pytest
 from django.utils import timezone
 
 from dream_core.patients.models import Patient
-from tests.patients.factories import PatientFactory
+from dream_core.testing.factories.patients import PatientFactory
 
 
 pytestmark = pytest.mark.django_db
@@ -99,7 +99,7 @@ class TestSoftDeleteModel:
         assert Patient.objects.filter(id=patient.id).exists()
 
     def test_delete_sets_deleted_by_when_provided(self) -> None:
-        from tests.accounts.factories import UserFactory
+        from dream_core.testing.factories.accounts import UserFactory
         user = UserFactory()
         patient = PatientFactory()
 
