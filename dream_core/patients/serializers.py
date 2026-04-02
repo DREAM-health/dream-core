@@ -102,7 +102,8 @@ class PatientWriteSerializer(serializers.ModelSerializer[Patient]):
 
     def _upsert_contacts(self, patient: Patient, contacts: list[dict[str, Any]]) -> None:
         # Replace contacts on update
-        patient.contacts.all().delete()
+        for contact in patient.contacts.filter(deleted_at__isnull=True):
+            contact.delete()
         for contact in contacts:
             PatientContact.objects.create(patient=patient, **contact)
 
@@ -182,7 +183,8 @@ class FHIRPatientSerializer(serializers.Serializer[Patient]):
                 defaults={"use": ident.get("use", "official")},
             )
         if contacts:
-            instance.contacts.all().delete()
+            for contact in instance.contacts.filter(deleted_at__isnull=True):
+                contact.delete()
             for contact in contacts:
                 PatientContact.objects.create(patient=instance, **contact)
         return instance

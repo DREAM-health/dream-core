@@ -90,8 +90,7 @@ class LabTestDefinitionDetailSerializer(serializers.ModelSerializer[LabTestDefin
         model = LabTestDefinition
         fields = [
             "id", "code", "name", "full_name", "abbreviation",
-            "description", "loinc_code", "snomed_code",
-            "container_type", "minimum_volume_ml",
+            "description", "loinc_code", "snomed_code", "minimum_volume_ml",
             "result_type", "unit", "decimal_places",
             "turnaround_hours", "method", "instrument",
             "requires_validation", "reportable", "is_active", "sort_order",
@@ -111,8 +110,7 @@ class LabTestDefinitionWriteSerializer(serializers.ModelSerializer[LabTestDefini
         fields = [
             "code", "name", "full_name", "abbreviation",
             "description", "loinc_code", "snomed_code",
-            "result_type", "unit", "decimal_places",
-            "container_type", "minimum_volume_ml",
+            "result_type", "unit", "decimal_places", "minimum_volume_ml",
             "turnaround_hours", "method", "instrument",
             "price", "allowed_values",
             "requires_validation", "reportable", "is_active", "sort_order",

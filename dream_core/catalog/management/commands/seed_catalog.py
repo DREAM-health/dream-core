@@ -261,28 +261,24 @@ PANELS_DATA = [
     {
         "code": "FBC", "name": "Full Blood Count", "category": "Haematology",
         "loinc_code": "58410-2",
-        "container_type": "EDTA tube (purple cap)",
         "turnaround_hours": 2, "fasting_required": False, "sort_order": 10,
         "tests": FBC_TESTS,
     },
     {
         "code": "CMP", "name": "Comprehensive Metabolic Panel", "category": "Biochemistry",
         "loinc_code": "24323-8", 
-        "container_type": "SST (gold cap)",
         "turnaround_hours": 4, "fasting_required": True, "sort_order": 20,
         "tests": CMP_TESTS,
     },
     {
         "code": "LIPID", "name": "Lipid Panel", "category": "Biochemistry",
         "loinc_code": "57698-3", 
-        "container_type": "SST (gold cap)",
         "turnaround_hours": 4, "fasting_required": True, "sort_order": 30,
         "tests": LIPID_TESTS,
     },
     {
         "code": "TFT", "name": "Thyroid Function Tests", "category": "Endocrinology",
         "loinc_code": "11580-8", 
-        "container_type": "SST (gold cap)",
         "turnaround_hours": 6, "fasting_required": False, "sort_order": 40,
         "tests": THYROID_TESTS,
     },
