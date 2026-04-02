@@ -29,20 +29,38 @@ dream-core/
 │   │   ├── serializers.py
 │   │   └── views.py
 │   │
-│   ├── catalog/                # LabTest Catalog (MedLIMS)
+│   ├── catalog/                # LabTest Catalog
 │   │   ├── models.py           # Unit, LabTestPanel, LabTestDefinition, ReferenceRange
 │   │   ├── serializers.py
 │   │   ├── views.py            # Includes result interpretation engine
 │   │   └── management/commands/seed_catalog.py
 │   │
 │   └── audit/                  # Audit log query API
-│       └── views.py            # Read-only over django-auditlog LogEntry
-│  
+│   │   └── views.py            # Read-only over django-auditlog LogEntry
+│   │
+│   ├── facilities/             # Multi-tenancy & Facility Management (Phase 1 Stub)
+│   │   ├── admin.py            # FacilityMembershipAdmin, FacilityAdmin, FacilityMembershipInline
+│   │   ├── apps.py             # FacilitiesConfig
+│   │   ├── models.py           # Facility, FacilityMembership
+│   │   └── mixins.py           # FacilityFilterMixin, FacilityRequiredMixin
+│   │
+│   ├── health_check/           # Robust health check module
+│   │   └── views.py            
+│   │
+│   └── testing/                # ...
+│       ├── factories/          # ...
+│       │    ├── accounts.py    # ...
+│       │    ├── catalog.py     # ...
+│       │    ├── facilities.py  # ...
+│       │    └── patients.py    # ...
+│       └── fixtures/           # ...
+│           └── conftest.py     # Shared fixtures + API clients per role
 └── tests/
-    ├── conftest.py             # Shared fixtures + API clients per role
+    ├── conftest.py             # Only import from dream_core.testing.fixtures
     ├── accounts/               # Auth + RBAC tests
     ├── patients/               # Patient CRUD + soft-delete + FHIR tests
     ├── catalog/                # Catalog CRUD + interpretation tests
+    ├── health_check/
     └── audit/                  # Audit log access tests
 ```
 
@@ -142,57 +160,66 @@ ruff format dream_core/ tests/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/auth/login/` | Obtain JWT access + refresh tokens |
-| POST | `/api/v1/auth/token/refresh/` | Refresh access token |
-| POST | `/api/v1/auth/logout/` | Blacklist refresh token |
-| POST | `/api/v1/auth/change-password/` | Change own password |
+| POST | `/api/core/v1/auth/login/` | Obtain JWT access + refresh tokens |
+| POST | `/api/core/v1/auth/token/refresh/` | Refresh access token |
+| POST | `/api/core/v1/auth/logout/` | Blacklist refresh token |
+| POST | `/api/core/v1/auth/change-password/` | Change own password |
 
 ### Accounts
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET | `/api/v1/accounts/me/` | Any authenticated |
-| PATCH | `/api/v1/accounts/me/` | Any authenticated |
-| GET | `/api/v1/accounts/users/` | ADMIN+ |
-| POST | `/api/v1/accounts/users/` | ADMIN+ |
-| GET/PUT/PATCH | `/api/v1/accounts/users/{id}/` | ADMIN+ |
-| DELETE | `/api/v1/accounts/users/{id}/` | ADMIN+ (deactivates, never deletes) |
-| GET/POST | `/api/v1/accounts/roles/` | SUPERADMIN |
-| GET/PUT/DELETE | `/api/v1/accounts/roles/{id}/` | SUPERADMIN |
+| GET | `/api/core/v1/accounts/me/` | Any authenticated |
+| PATCH | `/api/core/v1/accounts/me/` | Any authenticated |
+| GET | `/api/core/v1/accounts/users/` | ADMIN+ |
+| POST | `/api/core/v1/accounts/users/` | ADMIN+ |
+| GET/PUT/PATCH | `/api/core/v1/accounts/users/{id}/` | ADMIN+ |
+| DELETE | `/api/core/v1/accounts/users/{id}/` | ADMIN+ (deactivates, never deletes) |
+| GET/POST | `/api/core/v1/accounts/roles/` | SUPERADMIN |
+| GET/PUT/DELETE | `/api/core/v1/accounts/roles/{id}/` | SUPERADMIN |
 
 ### Patients (FHIR R4 Registry)
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET | `/api/v1/patients/` | Any clinical role |
-| POST | `/api/v1/patients/` | CLINICIAN, ADMIN, RECEPTIONIST |
-| GET | `/api/v1/patients/{id}/` | Any clinical role |
-| PUT/PATCH | `/api/v1/patients/{id}/` | CLINICIAN, ADMIN |
-| DELETE | `/api/v1/patients/{id}/` | CLINICIAN, ADMIN (soft-delete, reason required) |
-| POST | `/api/v1/patients/fhir/` | CLINICIAN, ADMIN, RECEPTIONIST |
-| GET | `/api/v1/patients/{id}/fhir/` | Any clinical role |
-| PUT | `/api/v1/patients/{id}/fhir/` | CLINICIAN, ADMIN |
-| GET | `/api/v1/patients/deleted/` | ADMIN+ |
-| POST | `/api/v1/patients/{id}/restore/` | ADMIN+ |
+| GET | `/api/core/v1/patients/` | Any clinical role |
+| POST | `/api/core/v1/patients/` | RECEPTIONIST, CLINICIAN, ADMIN+ |
+| GET | `/api/core/v1/patients/{id}/` | Any clinical role |
+| PUT/PATCH | `/api/core/v1/patients/{id}/` | CLINICIAN, ADMIN+ |
+| DELETE | `/api/core/v1/patients/{id}/` | CLINICIAN, ADMIN+ (soft-delete, reason required) |
+| POST | `/api/core/v1/patients/fhir/` | RECEPTIONIST, CLINICIAN, ADMIN+ |
+| GET | `/api/core/v1/patients/{id}/fhir/` | Any clinical role |
+| PUT | `/api/core/v1/patients/{id}/fhir/` | CLINICIAN, ADMIN+ |
+| GET | `/api/core/v1/patients/deleted/` | ADMIN+ |
+| POST | `/api/core/v1/patients/{id}/restore/` | ADMIN+ |
 
 ### Test Catalog
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET/POST | `/api/v1/catalog/units/` | GET: any clinical; POST: LAB_MANAGER+ |
-| GET/POST | `/api/v1/catalog/panels/` | GET: any clinical; POST: LAB_MANAGER+ |
-| GET/PATCH/DELETE | `/api/v1/catalog/panels/{id}/` | GET: any; write: LAB_MANAGER+ |
-| GET/POST | `/api/v1/catalog/labtests/` | GET: any clinical; POST: LAB_MANAGER+ |
-| GET/PATCH/DELETE | `/api/v1/catalog/labtests/{id}/` | GET: any; write: LAB_MANAGER+ |
-| POST | `/api/v1/catalog/labtests/interpret/` | Any clinical role |
+| GET/POST | `/api/core/v1/catalog/units/` | GET: any clinical; POST: LAB_MANAGER+ |
+| GET/POST | `/api/core/v1/catalog/panels/` | GET: any clinical; POST: LAB_MANAGER+ |
+| GET/PATCH/DELETE | `/api/core/v1/catalog/panels/{id}/` | GET: any; write: LAB_MANAGER+ |
+| GET/POST | `/api/core/v1/catalog/labtests/` | GET: any clinical; POST: LAB_MANAGER+ |
+| GET/PATCH/DELETE | `/api/core/v1/catalog/labtests/{id}/` | GET: any; write: LAB_MANAGER+ |
+| POST | `/api/core/v1/catalog/labtests/interpret/` | Any clinical role |
 
 ### Audit
 
 | Method | Endpoint | Role Required |
 |--------|----------|---------------|
-| GET | `/api/v1/audit/logs/` | AUDITOR, ADMIN, SUPERADMIN |
-| GET | `/api/v1/audit/logs/{id}/` | AUDITOR, ADMIN, SUPERADMIN |
-| GET | `/api/v1/audit/logs/object/{app}/{model}/{pk}/` | AUDITOR, ADMIN, SUPERADMIN |
+| GET | `/api/core/v1/audit/logs/` | AUDITOR, ADMIN, SUPERADMIN |
+| GET | `/api/core/v1/audit/logs/{id}/` | AUDITOR, ADMIN, SUPERADMIN |
+| GET | `/api/core/v1/audit/logs/object/{app}/{model}/{pk}/` | AUDITOR, ADMIN, SUPERADMIN |
+
+### Facilities (Phase 1)
+
+> **Status:** Facility management is currently performed via the Django Admin.
+> API endpoints for Facility CRUD and Membership will be introduced in Phase 2.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| *TBD* | `/api/core/v1/facilities/` | Manage clinical & lab facilities (Phase 2) |
 
 ---
 
@@ -216,11 +243,11 @@ ruff format dream_core/ tests/
 - **No model may be hard-deleted via the API.** All `DELETE` endpoints perform soft-deletes.
 - `Patient.delete()` requires a `reason` of at least 10 characters.
 - Records remain in the database indefinitely. Use `all_objects` manager for audit access.
-- `hard_delete()` is available on the model but only for extraordinary circumstances.
+- `hard_delete()` is available on the model for extraordinary circumstances, requiring an explicit Django permission and a written `authorisation_token` (minimum 20 characters).
 
 ### Audit trail
 - Every mutation on `User`, `Role`, `Patient`, `PatientIdentifier`, `PatientContact`,
-  `Unit`, `LabTestPanel`, `LabTestDefinition`, `ReferenceRange` is automatically logged
+  `Unit`, `LabTestPanel`, `LabTestDefinition`, `ReferenceRange`, `LabTestMethod` is automatically logged
   by `django-auditlog` with actor, timestamp, IP, and before/after field values.
 - The `AuditlogMiddleware` captures the request user automatically.
 - Audit log entries are **never soft-deleted** — they are immutable records.
@@ -257,11 +284,12 @@ Start here for understanding why certain choices were made.
 
 Notable decisions already embedded in code:
 - **UUID PKs everywhere** — no sequential IDs in the API (security + FHIR alignment)
-- **AGPL v3 license** — protects against SaaS competitors using the code without contributing back
+- **BSD 3-Clause License** — permissive license for open-source healthcare innovation
 - **fhir.resources (Pydantic v2)** — provides a second schema validation layer for FHIR resources
-- **django-guardian** — object-level permissions for future per-facility data isolation
+- **django-guardian** — fine-grained object-level permissions (e.g., cross-facility sharing)
+- **FacilityFilterMixin** — core mechanism for row-level multi-tenancy and isolation (Phase 2)
 - **Keycloak** — recommended for production SSO/MFA (not bundled, integrates via OIDC)
-- **Data persistence NOT FHIR** — FHIR is designed primarily as a standard for communication (exchange), but it is increasingly used for storage (persistence). However, **FHIR won't be used for persistence at this point** due to both FHIR standard and dream software maturity.
+- **Data persistence NOT FHIR** — FHIR is designed primarily as a standard for communication (exchange), but it is increasingly used for storage (persistence). However, **FHIR won't be used for persistence at this point** due to both FHIR standard and dream-core maturity.
 Rationale:
     - https://www.linkedin.com/pulse/can-fhir-model-used-data-storage-shahram-shahpouri-arani#:~:text=Healthcare%20applications%20receive%20and%20send,class%20inheritance%20/%20multi%2Dtypes;
 

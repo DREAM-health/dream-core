@@ -15,15 +15,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from fhir.resources.patient import Patient as FHIRPatient  # type: ignore[import-untyped]
-from fhir.resources.humanname import HumanName  # type: ignore[import-untyped]
-from fhir.resources.identifier import Identifier  # type: ignore[import-untyped]
-from fhir.resources.contactpoint import ContactPoint  # type: ignore[import-untyped]
-from fhir.resources.address import Address  # type: ignore[import-untyped]
+from fhir.resources.patient import Patient as FHIRPatient
+from fhir.resources.humanname import HumanName
+from fhir.resources.identifier import Identifier
+from fhir.resources.contactpoint import ContactPoint
+from fhir.resources.address import Address
 
 if TYPE_CHECKING:
     from dream_core.patients.models import Patient
 
+# System URIs for dream-core proprietary identifiers
+_SYSTEM_INTERNAL_UUID = "https://dream-core.local/system-internal-uuid"
+_SYSTEM_ID_PATIENT    = "https://dream-core.local/id-patient"
+_SYSTEM_ID_DREAM      = "https://dream-core.local/id-dream"
 
 # ── Django → FHIR ─────────────────────────────────────────────────────────────
 
@@ -34,21 +38,18 @@ def patient_to_fhir(patient: "Patient") -> FHIRPatient:
     The FHIR resource is NOT persisted — it is used for API responses and
     outbound HL7 messaging.
     """
-    # Identifiers
+    # Identifiers — start with the internal UUID, then proprietary IDs, then PatientIdentifier rows
     identifiers: list[dict[str, Any]] = [
-        {
-            "use": ident.use,
-            "system": ident.system,
-            "value": ident.value,
-        }
-        for ident in patient.identifiers.all()
+        {"use": "official", "system": _SYSTEM_INTERNAL_UUID, "value": str(patient.id)},
     ]
-    # Always add the internal dream-core ID as an identifier
-    identifiers.insert(0, {
-        "use": "official",
-        "system": "https://dream-core.local/patient-id",
-        "value": str(patient.id),
-    })
+    if patient.id_patient:
+        identifiers.append({"use": "usual", "system": _SYSTEM_ID_PATIENT, "value": patient.id_patient})
+    if patient.id_dream:
+        identifiers.append({"use": "secondary", "system": _SYSTEM_ID_DREAM, "value": patient.id_dream})
+    identifiers.extend(
+        {"use": ident.use, "system": ident.system, "value": ident.value}
+        for ident in patient.identifiers.all()
+    )
 
     # HumanName
     name: list[dict[str, Any]] = [
@@ -98,6 +99,8 @@ def patient_to_fhir(patient: "Patient") -> FHIRPatient:
     return FHIRPatient.model_validate(resource_dict)
 
 
+# ── FHIR → Django ─────────────────────────────────────────────────────────────
+
 def fhir_to_patient_data(fhir_dict: dict[str, Any]) -> dict[str, Any]:
     """
     Parse and validate a FHIR R4 Patient resource dict, then return
@@ -143,17 +146,24 @@ def fhir_to_patient_data(fhir_dict: dict[str, Any]) -> dict[str, Any]:
         "is_active": fhir_patient.active if fhir_patient.active is not None else True,
     }
 
-    # Identifiers (excluding our internal one)
+    # Extract proprietary IDs and external identifiers separately
     identifiers: list[dict[str, Any]] = []
     if fhir_patient.identifier:
         for ident in fhir_patient.identifier:
-            if ident.system != "https://dream-core.local/patient-id":
+            system = str(ident.system) if ident.system else ""
+            if system == _SYSTEM_INTERNAL_UUID:
+                continue  # never overwrite our UUID PK
+            elif system == _SYSTEM_ID_PATIENT:
+                data["id_patient"] = ident.value
+            elif system == _SYSTEM_ID_DREAM:
+                data["id_dream"] = ident.value
+            else:
                 identifiers.append({
                     "use": ident.use or "official",
-                    "system": str(ident.system),
+                    "system": system,
                     "value": ident.value,
                 })
-    data["identifiers"] = identifiers
+    data["identifiers"] = identifiers    
 
     # Contacts (non-email telecom)
     contacts: list[dict[str, Any]] = []

@@ -13,14 +13,14 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from dream_core.accounts.models import User
-from tests.accounts.factories import UserFactory
+from dream_core.testing.factories.accounts import UserFactory
 
 
 pytestmark = pytest.mark.django_db
 
 
 class TestLogin:
-    URL = "/api/v1/auth/login/"
+    URL = "/api/core/v1/auth/login/"
 
     def test_login_success_returns_tokens(self, anon_client: APIClient) -> None:
         user = UserFactory(email="login@test.com")
@@ -107,8 +107,8 @@ class TestLogin:
 
 
 class TestLogout:
-    LOGIN_URL = "/api/v1/auth/login/"
-    LOGOUT_URL = "/api/v1/auth/logout/"
+    LOGIN_URL = "/api/core/v1/auth/login/"
+    LOGOUT_URL = "/api/core/v1/auth/logout/"
 
     def _login(self, client: APIClient, email: str, password: str) -> dict:
         resp = client.post(self.LOGIN_URL, {"email": email, "password": password})
@@ -127,7 +127,7 @@ class TestLogout:
 
         # Using the blacklisted refresh token should now fail
         refresh_resp = anon_client.post(
-            "/api/v1/auth/token/refresh/", {"refresh": tokens["refresh"]}
+            "/api/core/v1/auth/token/refresh/", {"refresh": tokens["refresh"]}
         )
         assert refresh_resp.status_code == status.HTTP_401_UNAUTHORIZED
 
@@ -137,7 +137,7 @@ class TestLogout:
 
 
 class TestChangePassword:
-    URL = "/api/v1/auth/change-password/"
+    URL = "/api/core/v1/auth/change-password/"
 
     def test_change_password_success(self, admin_client: APIClient, admin_user: User) -> None:
         resp = admin_client.post(self.URL, {
@@ -177,7 +177,7 @@ class TestChangePassword:
 
 
 class TestMeEndpoint:
-    URL = "/api/v1/accounts/me/"
+    URL = "/api/core/v1/accounts/me/"
 
     def test_me_returns_current_user(
         self, admin_client: APIClient, admin_user: User

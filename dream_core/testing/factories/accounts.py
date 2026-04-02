@@ -1,5 +1,5 @@
 """
-tests/accounts/factories.py — factory_boy factories for accounts.
+dream_core/testing/factories/accounts.py — factory_boy factories for accounts.
 """
 import factory
 from factory.django import DjangoModelFactory

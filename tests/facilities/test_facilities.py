@@ -37,10 +37,10 @@ from dream_core.patients.models import Patient
 from dream_core.catalog.models import LabTestPanel, LabTestDefinition
 from dream_core.audit.models import AuditEvent
 
-from tests.facilities.factories import FacilityFactory, FacilityMembershipFactory
-from tests.accounts.factories import UserFactory
-from tests.patients.factories import PatientFactory
-from tests.catalog.factories import LabTestPanelFactory, LabTestDefinitionFactory
+from dream_core.testing.factories.facilities import FacilityFactory, FacilityMembershipFactory
+from dream_core.testing.factories.accounts import UserFactory
+from dream_core.testing.factories.patients import PatientFactory
+from dream_core.testing.factories.catalog import LabTestPanelFactory, LabTestDefinitionFactory
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -156,7 +156,7 @@ class TestFacilityMembership:
         assert user.facility_memberships.count() == 2
 
     def test_role_override_can_be_set(self) -> None:
-        from tests.accounts.factories import RoleFactory
+        from dream_core.testing.factories.accounts import RoleFactory
         user = UserFactory()
         facility = FacilityFactory()
         role = RoleFactory(name="LAB_ANALYST")
@@ -256,7 +256,7 @@ class TestFacilityFilterMixin:
 
     @override_settings(FACILITY_ENFORCEMENT_ENABLED=True)
     def test_phase2_superadmin_role_bypasses_facility_scoping(self) -> None:
-        from tests.accounts.factories import RoleFactory
+        from dream_core.testing.factories.accounts import RoleFactory
         superadmin_role = RoleFactory(name=RoleType.SUPERADMIN)
         user = UserFactory(roles=[superadmin_role])
 
