@@ -9,7 +9,6 @@ dream-core/
 │   │   ├── base.py             # Shared settings
 │   │   ├── development.py      # Local dev (SQLite)
 │   │   ├── testing.py          # pytest (in-memory SQLite)
-│   │   └── production.py       # Production (PostgreSQL, strict security)
 │   └── urls.py                 # Root URL router
 │
 ├── dream_core/
@@ -36,7 +35,10 @@ dream-core/
 │   │   └── management/commands/seed_catalog.py
 │   │
 │   └── audit/                  # Audit log query API
-│   │   └── views.py            # Read-only over django-auditlog LogEntry
+│   │   ├── models.py           # AuditEvent, AuditEventmanager
+│   │   ├── serializers.py
+│   │   ├── views.py            # Read-only over django-auditlog LogEntry
+│   │   └── urls.py
 │   │
 │   ├── facilities/             # Multi-tenancy & Facility Management (Phase 1 Stub)
 │   │   ├── admin.py            # FacilityMembershipAdmin, FacilityAdmin, FacilityMembershipInline
@@ -76,7 +78,7 @@ dream-core/
 ### 1. Clone and set up environment
 
 ```bash
-git clone https://github.com/your-org/dream-core.git
+git clone https://github.com/DREAM-health/dream-core.git
 cd dream-core
 
 python -m venv .venv
@@ -95,8 +97,6 @@ docker compose up -d
 ```
 
 API will be available at: `http://localhost:8000`
-Swagger UI: `http://localhost:8000/api/docs/`
-ReDoc: `http://localhost:8000/api/redoc/`
 
 ### 3. Run without Docker (SQLite dev mode)
 
