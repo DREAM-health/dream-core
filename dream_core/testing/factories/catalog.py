@@ -1,5 +1,5 @@
 """
-tests/catalog/factories.py — factory_boy factories for the test catalog.
+dream_core/testing/factories/catalog.py — factory_boy factories for the test catalog.
 """
 from decimal import Decimal
 

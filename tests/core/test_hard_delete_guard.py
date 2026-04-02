@@ -22,8 +22,8 @@ from dream_core.core.hard_delete import (
     MIN_TOKEN_LENGTH,
 )
 from dream_core.patients.models import Patient
-from tests.accounts.factories import UserFactory
-from tests.patients.factories import PatientFactory
+from dream_core.testing.factories.accounts import UserFactory
+from dream_core.testing.factories.patients import PatientFactory
 
 
 pytestmark = pytest.mark.django_db

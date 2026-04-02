@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from dream_core.accounts.models import User
-from tests.accounts.factories import RoleFactory, UserFactory
+from dream_core.testing.factories.accounts import RoleFactory, UserFactory
 
 from rest_framework.request import Request
 

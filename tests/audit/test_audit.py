@@ -10,7 +10,7 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from tests.patients.factories import PatientFactory
+from dream_core.testing.factories.patients import PatientFactory
 
 
 pytestmark = pytest.mark.django_db

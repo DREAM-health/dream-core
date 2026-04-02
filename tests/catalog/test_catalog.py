@@ -15,7 +15,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from dream_core.catalog.models import ReferenceRange, LabTestDefinition, LabTestPanel, MeasurementUnit
-from tests.catalog.factories import (
+from dream_core.testing.factories.catalog import (
     ReferenceRangeFactory,
     LabTestDefinitionFactory,
     LabTestPanelFactory,
