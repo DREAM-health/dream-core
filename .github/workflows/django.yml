@@ -2,6 +2,11 @@ name: Django CI
 
 on:
   workflow_dispatch:
+    inputs:
+      refToBuild:
+        description: 'Branch, tag or commit SHA1 to build'
+        required: false
+        type: string
   push:
     branches: [ "main" ]
   pull_request:
@@ -12,7 +17,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  build_and_test:
+  test:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 4
@@ -21,6 +26,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.refToBuild }}
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
