@@ -61,6 +61,7 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
     id_patient: models.CharField = models.CharField(
         max_length=50,
         unique=True,
+        null=True,
         blank=True,
         db_index=True,
         help_text="Internal patient identifier assigned by the clinical system.",
@@ -68,6 +69,7 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
     id_dream: models.CharField = models.CharField(
         max_length=50,
         unique=True,
+        null=True,
         blank=True,
         db_index=True,
         help_text="DREAM programme identifier for cross-system linkage.",
@@ -156,15 +158,27 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
     def full_name(self) -> str:
         return f"{self.given_names} {self.family_name}".strip()
 
-    # TODO: override in Patient.delete() that cascades the soft-delete to related objects.
     def delete(self, using = None, keep_parents = False, deleted_by = None, reason = ""):
-        return super().delete(using, keep_parents, deleted_by, reason)
+        result = super().delete(using, keep_parents, deleted_by, reason)
+        # Cascade soft-delete to related SoftDeleteModel subclasses.
+        # PatientIdentifier and PatientContact: mark active contacts/identifiers as deleted.
+        # DataConsent: soft-delete all active consents (retains audit trail).
+        for identifier in self.identifiers.filter(deleted_at__isnull=True):
+            identifier.delete(deleted_by=deleted_by, reason=reason)
+        for contact in self.contacts.filter(deleted_at__isnull=True):
+            contact.delete(deleted_by=deleted_by, reason=reason)
+        for consent in self.consents.filter(deleted_at__isnull=True):
+            consent.delete(deleted_by=deleted_by, reason=reason)
+        return result
 
 
-class PatientIdentifier(models.Model):
+class PatientIdentifier(SoftDeleteModel):
     """
     External identifiers for a patient.
     Maps to FHIR R4 Identifier datatype.
+
+    Extends SoftDeleteModel so identifiers are never physically removed —
+    the audit trail must survive patient merges and corrections.
 
     Examples:
       system="urn:oid:2.16.840.1.113883.2.4.6.3" value="123456789" (BSN)
@@ -210,10 +224,13 @@ class PatientIdentifier(models.Model):
         return f"{self.system}|{self.value}"
 
 
-class PatientContact(models.Model):
+class PatientContact(SoftDeleteModel):
     """
     Phone and telecom contacts for a patient.
     Maps to FHIR R4 ContactPoint datatype.
+
+    Extends SoftDeleteModel so contact history is retained — contact changes
+    are clinically significant and must be auditable.
     """
 
     class SystemChoices(models.TextChoices):
@@ -371,7 +388,7 @@ class DataConsent(SoftDeleteModel):
         if reason:
             self.revocation_reason = reason
         self.save(update_fields=[
-            "is_active", "revoked_at", "revoked_by", "revocation_reason", "updated_at"
+            "is_active", "revoked_at", "revoked_by", "revocation_reason"
         ])
 
 

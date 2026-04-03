@@ -222,9 +222,6 @@ class LabTestDefinition(SoftDeleteModel):
         related_name="tests",
     )
 
-    container_type: models.CharField = models.CharField(
-        max_length=100, blank=True,
-    )
     minimum_volume_ml: models.DecimalField = models.DecimalField(
         max_digits=6, decimal_places=2, null=True, blank=True,
     )
