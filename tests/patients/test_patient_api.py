@@ -451,7 +451,6 @@ class TestPatientRestore:
         assert Patient.objects.filter(id=patient.id).exists()
 
     def test_restore_nonexistent_returns_404(self, admin_client: APIClient) -> None:
-        import uuid
         resp = admin_client.post(f"/api/core/v1/patients/{uuid.uuid4()}/restore/")
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
