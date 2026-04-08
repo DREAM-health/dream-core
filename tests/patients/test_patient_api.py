@@ -159,7 +159,6 @@ class TestPatientCreate:
     def test_patient_gets_uuid_id(self, clinician_client: APIClient) -> None:
         resp = clinician_client.post(LIST_URL, self._payload(email="uuid@test.com"), format="json")
         assert resp.status_code == status.HTTP_201_CREATED
-        import uuid
         uuid.UUID(resp.json()["id"])  # raises ValueError if not valid UUID
 
 
