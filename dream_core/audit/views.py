@@ -161,7 +161,7 @@ class AuditLogDetailView(APIView):
 
     permission_classes = [IsAuthenticated, IsAuditor]
 
-    @extend_schema(summary="Retrieve audit audit event")
+    @extend_schema(summary="Retrieve audit event")
     def get(self, request: Request, pk: int, *args: Any, **kwargs: Any) -> Response:
         from django.http import Http404
         try:
