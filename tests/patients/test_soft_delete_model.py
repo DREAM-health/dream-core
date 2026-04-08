@@ -129,7 +129,7 @@ class TestSoftDeleteModel:
 
         assert not Patient.all_objects.filter(id=pk).exists()
 
-    def test_multiple_soft_deletes_are_idempotent(self) -> None:
+    def test_multiple_soft_deletes_update_metadata(self) -> None:
         patient = PatientFactory()
         patient.delete(reason="First deletion")
         first_deleted_at = patient.deleted_at
