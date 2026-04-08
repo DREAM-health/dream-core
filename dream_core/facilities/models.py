@@ -159,21 +159,13 @@ class Facility(HardDeleteGuard, SoftDeleteModel):
         help_text="IANA timezone for report timestamps. e.g. 'America/Sao_Paulo'.",
     )
 
-    # ── Phase 2 enforcement flag (per-facility override) ──────────────────────
-    # When the global FACILITY_ENFORCEMENT_ENABLED setting is True, this flag
-    # can additionally be toggled per-facility to allow a gradual rollout.
-    enforcement_enabled: models.BooleanField = models.BooleanField(
-        default=False,
-        help_text=(
-            "Phase 2: when True AND the global FACILITY_ENFORCEMENT_ENABLED"
-            "setting is True, all queries for this facility are scoped."
-        ),
-    )
-
     class Meta:
         verbose_name = "Facility"
         verbose_name_plural = "Facilities"
         ordering = ["name"]
+        permissions = [
+            ("access_facility", "Can access facility data cross-tenant"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.name} ({self.code})"

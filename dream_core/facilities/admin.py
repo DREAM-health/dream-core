@@ -14,7 +14,7 @@ class FacilityMembershipInline(admin.TabularInline):
 @admin.register(Facility)
 class FacilityAdmin(admin.ModelAdmin):
     list_display = ("name", "code", "facility_type", "is_active", "parent_facility", "created_at")
-    list_filter = ("facility_type", "is_active", "enforcement_enabled")
+    list_filter = ("facility_type", "is_active")
     search_fields = ("name", "short_name", "code", "tax_id")
     readonly_fields = ("created_at", "updated_at")
     inlines = [FacilityMembershipInline]
@@ -31,7 +31,7 @@ class FacilityAdmin(admin.ModelAdmin):
             "classes": ("collapse",),
         }),
         ("Operation", {
-            "fields": ("is_active", "timezone", "enforcement_enabled"),
+            "fields": ("is_active", "timezone"),
         }),
         ("Audit", {
             "fields": ("created_at", "updated_at", "created_by", "updated_by"),

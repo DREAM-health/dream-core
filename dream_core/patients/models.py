@@ -117,17 +117,16 @@ class Patient(HardDeleteGuard, SoftDeleteModel):
         help_text="Current breastfeeding status. Null = not applicable or unknown.",
     )
 
-    # ── Facility (Phase 2 tenancy stub) ───────────────────────────────────────
-    # Nullable in Phase 1. In Phase 2 this will be made non-nullable and all
-    # querysets will be scoped to the requesting user's facility_ids.
+    # ── Facility ─────────────────────────────────────────────────────────────
+    # Non-nullable from Phase 2 onwards. Every patient belongs to exactly one
+    # facility. Cross-facility access is granted via django-guardian object
+    # permissions on the Facility model, not via this FK.
     # See dream_core/facilities/mixins.py — FacilityFilterMixin.
     facility: models.ForeignKey = models.ForeignKey(
         "facilities.Facility",
-        null=True,
-        blank=True,
         on_delete=models.PROTECT,
         related_name="patients",
-        help_text="Facility this patient record belongs to. Required in Phase 2.",
+        help_text="Facility this patient record belongs to.",
     )
  
     # ── Active status ─────────────────────────────────────────────────────────

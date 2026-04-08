@@ -7,6 +7,7 @@ import factory
 from factory.django import DjangoModelFactory
 
 from dream_core.patients.models import DataConsent, Patient, PatientContact, PatientIdentifier
+from dream_core.testing.factories.facilities import FacilityFactory
 
 
 class PatientFactory(DjangoModelFactory):
@@ -25,7 +26,10 @@ class PatientFactory(DjangoModelFactory):
     is_pregnant = None
     is_breastfeeding = None
     is_active = True
-    facility = None  # Phase 1 default: no facility required
+    # Phase 2: facility is required; a new FacilityFactory instance is created
+    # per patient by default. Tests that need shared facilities should pass
+    # the factory explicitly: PatientFactory(facility=default_facility).
+    facility = factory.SubFactory(FacilityFactory)
 
 
 class PatientIdentifierFactory(DjangoModelFactory):

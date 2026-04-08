@@ -4,18 +4,20 @@ dream_core/facilities/mixins.py
 View mixins for facility-scoped data isolation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PHASE 1 vs PHASE 2
+PHASE 2
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Phase 1 (current):
-  FACILITY_ENFORCEMENT_ENABLED = False (default).
-  Mixins are imported and applied on views, but get_facility_queryset()
-  returns the full queryset unchanged. No behaviour difference from today.
-
-Phase 2 activation:
-  Set FACILITY_ENFORCEMENT_ENABLED = True in settings.
-  All views using FacilityFilterMixin will automatically scope their
-  querysets to the requesting user's permitted facilities.
-  No view code needs to change — only the setting.
+Phase 2: full facility-scoped data isolation.
+ 
+Queryset scoping combines two sources of permitted facility IDs:
+  1. FacilityMembership rows (direct membership)
+  2. django-guardian object permissions on Facility instances
+     (cross-facility grants: codename = "access_facility")
+ 
+The combined set is used as the facility__in filter. null facility entries
+are NOT included (Decision 2: global catalog entries are exempt via C1 —
+catalog views do not apply FacilityFilterMixin).
+ 
+SUPERADMIN and is_superuser bypass all scoping.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 USAGE
@@ -55,8 +57,8 @@ def enforcement_active() -> bool:
 
 def get_user_facility_ids(request: Request) -> list[str]:
     """
-    Return all facility IDs the requesting user is a member of.
-    Result is cached on the request object to avoid repeated DB hits.
+    Return facility IDs from direct FacilityMembership rows.
+    Cached on the request object per Django request lifecycle.
     """
     cache_attr = "_facility_ids"
     if hasattr(request, cache_attr):
@@ -73,10 +75,49 @@ def get_user_facility_ids(request: Request) -> list[str]:
     return ids
 
 
+
+def get_guardian_facility_ids(request: Request) -> list[str]:
+    """
+    Return facility IDs the user has been granted cross-facility access to
+    via django-guardian object permission (codename: "access_facility").
+ 
+    These are facilities the user is NOT a member of but has been explicitly
+    granted read access to (e.g. a shared lab serving multiple clinics).
+ 
+    Cached on the request object.
+    """
+    cache_attr = "_guardian_facility_ids"
+    if hasattr(request, cache_attr):
+        val = getattr(request, cache_attr)
+        if isinstance(val, list):
+            return val
+ 
+    try:
+        from guardian.shortcuts import get_objects_for_user
+        qs = get_objects_for_user(
+            request.user,
+            "facilities.access_facility",
+            klass=Facility,
+            accept_global_perms=False,
+        )
+        ids: list[str] = list(qs.values_list("pk", flat=True))
+    except Exception:
+        ids = []
+ 
+    setattr(request, cache_attr, ids)
+    return ids
+ 
+ 
+def get_all_permitted_facility_ids(request: Request) -> list[str]:
+    """Union of membership IDs and guardian-granted IDs."""
+    membership = get_user_facility_ids(request)
+    guardian = get_guardian_facility_ids(request)
+    return list(set(membership) | set(guardian))
+
 def get_user_primary_facility(request: Request) -> Facility | None:
     """
-    Return the user's primary facility, or the first membership if none
-    is marked primary, or None if the user has no memberships.
+    Return the user's primary facility (is_primary=True), or the first
+    membership if none is primary, or None if no memberships exist.
     """
     memberships = (
         FacilityMembership.objects
@@ -86,6 +127,12 @@ def get_user_primary_facility(request: Request) -> Facility | None:
     )
     first = memberships.first()
     return first.facility if first else None
+ 
+def _is_superuser_or_superadmin(request: Request) -> bool:
+    user = request.user
+    if getattr(user, "is_superuser", False):
+        return True
+    return getattr(user, "has_role", lambda r: False)(RoleType.SUPERADMIN)
 
 
 # ── Mixins ────────────────────────────────────────────────────────────────────
@@ -93,14 +140,12 @@ def get_user_primary_facility(request: Request) -> Facility | None:
 class FacilityFilterMixin:
     """
     Scope read querysets to the user's permitted facilities.
-
-    Phase 1: passes through (no-op) when enforcement is disabled.
-    Phase 2: filters queryset to facility__in=user_facility_ids.
-
-    The model's queryset must have a `facility` FK field for this to work.
-    Models without a facility field are unaffected (no filter is applied).
+ 
+    Permitted = FacilityMembership rows + guardian "access_facility" grants.
+    SUPERADMIN / is_superuser bypass scoping entirely.
+    Models without a `facility` FK field are returned unfiltered.
+    null facility entries are NOT included.
     """
-
     request: Request  # set by DRF view
 
     def get_facility_queryset(self, queryset: QuerySet[Any]) -> QuerySet[Any]:
@@ -124,7 +169,7 @@ class FacilityFilterMixin:
         if getattr(user, "is_superuser", False) or getattr(user, "has_role", lambda r: False)(RoleType.SUPERADMIN):
             return queryset
 
-        facility_ids = get_user_facility_ids(self.request)
+        facility_ids = get_all_permitted_facility_ids(self.request)
         if not facility_ids:
             # User has no facility memberships — deny all access.
             return queryset.none()
@@ -135,10 +180,10 @@ class FacilityFilterMixin:
 class FacilityRequiredMixin:
     """
     Inject the user's primary facility into record creation.
-
-    Phase 1: returns an empty dict (no-op injection).
-    Phase 2: returns {'facility': <Facility>}; if the user has no primary
-             facility, raises PermissionDenied to prevent orphaned records.
+ 
+    Raises PermissionDenied if enforcement is active and the user has no
+    primary facility (prevents orphaned records).
+    SUPERADMIN bypasses the check and may pass facility explicitly.
 
     Usage:
         def perform_create(self, serializer):
@@ -149,6 +194,11 @@ class FacilityRequiredMixin:
 
     def get_facility_create_kwargs(self) -> dict[str, Any]:
         if not enforcement_active():
+            return {}
+
+        if _is_superuser_or_superadmin(self.request):
+            # Superadmin must pass facility explicitly in the request payload;
+            # we don't inject a default for them.
             return {}
 
         facility = get_user_primary_facility(self.request)

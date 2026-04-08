@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import pytest
 from django.test import override_settings
+from django.db.utils import IntegrityError
 from unittest.mock import MagicMock, patch
 
 from dream_core.accounts.accounts_utils import RoleType
@@ -56,7 +57,6 @@ class TestFacilityModel:
         assert f.is_active is True
         assert f.parent_facility is None
         assert f.is_branch is False
-        assert f.enforcement_enabled is False
 
     def test_str_representation(self) -> None:
         f = FacilityFactory(name="City Hospital", code="CTH")
@@ -187,14 +187,15 @@ class TestFacilityFilterMixin:
     # ── Phase 1: enforcement OFF (default) ────────────────────────────────────
 
     @override_settings(FACILITY_ENFORCEMENT_ENABLED=False)
-    def test_phase1_passthrough_returns_full_queryset(self) -> None:
+    def test_enforcement_false_returns_full_queryset(self) -> None:
         """With enforcement OFF, all patients are returned regardless of facility."""
         facility = FacilityFactory()
         other = FacilityFactory(code="OTH")
+        another = FacilityFactory(code="ANO")
 
         p1 = PatientFactory(facility=facility)
         p2 = PatientFactory(facility=other)
-        p3 = PatientFactory(facility=None)
+        p3 = PatientFactory(facility=another)
 
         user = UserFactory()
         view = self._make_view(user)
@@ -208,6 +209,10 @@ class TestFacilityFilterMixin:
     @override_settings(FACILITY_ENFORCEMENT_ENABLED=False)
     def test_enforcement_active_returns_false(self) -> None:
         assert enforcement_active() is False
+
+    @override_settings(FACILITY_ENFORCEMENT_ENABLED=True)
+    def test_enforcement_active_returns_true(self) -> None:
+        assert enforcement_active() is True
 
     # ── Phase 2: enforcement ON ───────────────────────────────────────────────
 
@@ -338,12 +343,6 @@ class TestFacilityRequiredMixin:
         view.request = request
         return view
 
-    @override_settings(FACILITY_ENFORCEMENT_ENABLED=False)
-    def test_phase1_returns_empty_kwargs(self) -> None:
-        user = UserFactory()
-        view = self._make_view(user)
-        assert view.get_facility_create_kwargs() == {}
-
     @override_settings(FACILITY_ENFORCEMENT_ENABLED=True)
     def test_phase2_injects_primary_facility(self) -> None:
         user = UserFactory()
@@ -394,10 +393,12 @@ class TestFacilityRequiredMixin:
 @pytest.mark.django_db
 class TestPatientFacilityStub:
 
-    def test_patient_can_be_created_without_facility(self) -> None:
-        p = PatientFactory(facility=None)
-        p.refresh_from_db()
-        assert p.facility is None
+    def test_patient_cannot_be_created_without_facility(self) -> None:
+        with pytest.raises(IntegrityError) as err:
+            p = PatientFactory(facility=None)
+            p.refresh_from_db()
+            assert p is None
+        assert "NOT NULL constraint failed: patients_patient.facility_id" in str(err)
 
     def test_patient_can_be_created_with_facility(self) -> None:
         facility = FacilityFactory()
@@ -487,16 +488,6 @@ class TestCatalogFacilityStubs:
 @pytest.mark.django_db
 class TestAuditEventManagerFacility:
 
-    @override_settings(FACILITY_ENFORCEMENT_ENABLED=False)
-    def test_for_facility_returns_none_in_phase1(self) -> None:
-        """
-        for_facility() must return an empty queryset in Phase 1.
-        Calling it in Phase 1 is a programming error — guard on the setting.
-        """
-        facility = FacilityFactory()
-        qs = AuditEvent.objects.for_facility(str(facility.pk))
-        assert qs.count() == 0
-
     @override_settings(FACILITY_ENFORCEMENT_ENABLED=True)
     def test_for_facility_filters_by_additional_data_in_phase2(self) -> None:
         """
@@ -526,4 +517,3 @@ class TestFacilityFixture:
         assert default.name == "Default Facility"
         assert default.is_active is True
         assert default.timezone == "UTC"
-        assert default.enforcement_enabled is False
