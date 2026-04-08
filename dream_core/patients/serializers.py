@@ -142,12 +142,12 @@ class FHIRPatientSerializer(serializers.Serializer[Patient]):
     # Accept any dict that represents a FHIR Patient resource
     def to_internal_value(self, data: dict[str, Any]) -> dict[str, Any]:
         """Validate FHIR document and convert to model-ready dict."""
+        import logging
         try:
             return fhir_to_patient_data(data)
         except Exception as exc:
-            raise serializers.ValidationError(
-                {"fhir": f"Invalid FHIR R4 Patient resource: {exc}"}
-            ) from exc
+            logging.exception(f"FHIR validation error: {exc}")
+            raise serializers.ValidationError({"fhir": "Invalid FHIR R4 Patient resource."})
 
     def to_representation(self, instance: Patient) -> dict[str, Any]:
         """Convert Django Patient to FHIR R4 Patient JSON."""
