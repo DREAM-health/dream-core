@@ -70,8 +70,8 @@ class FacilityListCreateView(generics.ListCreateAPIView[Facility]):
         if user.is_superuser or user.has_role("SUPERADMIN"):
             return Facility.objects.select_related("parent_facility").all()
         # ADMIN sees only their own facilities
-        from dream_core.facilities.mixins import get_user_facility_ids
-        ids = get_user_facility_ids(self.request)
+        from dream_core.facilities.mixins import get_all_permitted_facility_ids
+        ids = get_all_permitted_facility_ids(self.request)
         return Facility.objects.filter(pk__in=ids).select_related("parent_facility")
 
     def get_serializer_class(self) -> Any:
@@ -112,8 +112,8 @@ class FacilityDetailView(generics.RetrieveUpdateDestroyAPIView[Facility]):
         user: User = self.request.user  # type: ignore[assignment]
         if user.is_superuser or user.has_role("SUPERADMIN"):
             return Facility.objects.all()
-        from dream_core.facilities.mixins import get_user_facility_ids
-        ids = get_user_facility_ids(self.request)
+        from dream_core.facilities.mixins import get_all_permitted_facility_ids
+        ids = get_all_permitted_facility_ids(self.request)
         return Facility.objects.filter(pk__in=ids)
 
     def get_serializer_class(self) -> Any:
