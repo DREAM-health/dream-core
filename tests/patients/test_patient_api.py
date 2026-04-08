@@ -302,7 +302,6 @@ class TestPatientRetrieve:
         assert len(data["contacts"]) >= 1
 
     def test_retrieve_nonexistent_returns_404(self, clinician_client: APIClient) -> None:
-        import uuid
         resp = clinician_client.get(detail_url(uuid.uuid4()))
         assert resp.status_code == status.HTTP_404_NOT_FOUND
 
