@@ -1,6 +1,10 @@
 """
 dream_core/patients/views.py
 
+Phase 2: Facility-scoped - PatientQuerysetMixin now inherits FacilityFilterMixin;
+PatientListCreateView inherits FacilityRequiredMixin and calls get_facility_create_kwargs() 
+on serializer.save()
+
 Patient Registry endpoints:
 
 Standard REST:
@@ -36,6 +40,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from dream_core.accounts.permissions import HasAnyRole, IsAdmin
+from dream_core.facilities.mixins import FacilityFilterMixin, FacilityRequiredMixin
 from dream_core.patients.models import DataConsent, Patient
 from dream_core.patients.serializers import (
     DataConsentRevokeSerializer,
@@ -53,15 +58,18 @@ from dream_core.accounts.accounts_utils import RoleType
 
 # ── Mixins ────────────────────────────────────────────────────────────────────
 
-class PatientQuerysetMixin:
+class PatientQuerysetMixin(FacilityFilterMixin):
     """Shared queryset with prefetch for list and detail views."""
 
+    request: Request
+
     def get_queryset(self) -> QuerySet[Patient]:
-        return (
+        base = (
             Patient.objects
             .prefetch_related("identifiers", "contacts")
-            .select_related("created_by", "updated_by")
+            .select_related("created_by", "updated_by", "facility")
         )
+        return self.get_facility_queryset(base)
 
 
 # ── Standard REST views ───────────────────────────────────────────────────────
@@ -79,7 +87,7 @@ class PatientQuerysetMixin:
     ),
     post=extend_schema(summary="Create patient"),
 )
-class PatientListCreateView(PatientQuerysetMixin, generics.ListCreateAPIView[Patient]):
+class PatientListCreateView(FacilityRequiredMixin, PatientQuerysetMixin, generics.ListCreateAPIView[Patient]):
     """
     List all active patients or create a new one.
     Roles required: any authenticated clinical role.
@@ -97,6 +105,7 @@ class PatientListCreateView(PatientQuerysetMixin, generics.ListCreateAPIView[Pat
                 HasAnyRole(RoleType.SUPERADMIN, RoleType.ADMIN, RoleType.CLINICIAN, RoleType.LAB_MANAGER, RoleType.LAB_ANALYST, RoleType.RECEPTIONIST),
             ]
         return super().get_permissions()
+    
     filterset_fields = ["gender", "is_active", "blood_type", "is_pregnant", "is_breastfeeding"]
     search_fields = [
         "family_name", "given_names", "email",
@@ -113,7 +122,7 @@ class PatientListCreateView(PatientQuerysetMixin, generics.ListCreateAPIView[Pat
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         serializer = PatientWriteSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        patient: Patient = serializer.save()
+        patient: Patient = serializer.save(**self.get_facility_create_kwargs())
         output = PatientDetailSerializer(patient, context={"request": request})
         return Response(output.data, status=status.HTTP_201_CREATED)
 
@@ -197,9 +206,14 @@ class FHIRPatientCreateView(APIView):
         responses={201: FHIRPatientSerializer},
     )
     def post(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        from dream_core.facilities.mixins import FacilityRequiredMixin as _FRM
+        mixin = _FRM()
+        mixin.request = request
+        facility_kwargs = mixin.get_facility_create_kwargs()
+
         serializer = FHIRPatientSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        patient: Patient = serializer.save()
+        patient: Patient = serializer.save(**facility_kwargs)
         output = FHIRPatientSerializer(patient)
         return Response(output.data, status=status.HTTP_201_CREATED)
 
@@ -217,7 +231,13 @@ class FHIRPatientDetailView(APIView):
     ]
 
     def _get_patient(self, pk: str) -> Patient:
-        return Patient.objects.prefetch_related("identifiers", "contacts").get(pk=pk)
+        from dream_core.facilities.mixins import get_all_permitted_facility_ids
+        qs = Patient.objects.prefetch_related("identifiers", "contacts")
+        user = self.request.user
+        if not (getattr(user, "is_superuser", False) or user.has_role(RoleType.SUPERADMIN)):
+            ids = get_all_permitted_facility_ids(self.request)
+            qs = qs.filter(facility_id__in=ids)
+        return qs.get(pk=pk)
 
     @extend_schema(
         summary="Retrieve patient as FHIR R4 resource",

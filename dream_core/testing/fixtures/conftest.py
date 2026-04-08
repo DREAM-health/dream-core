@@ -8,7 +8,18 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from dream_core.accounts.models import Role, User
+from dream_core.facilities.models import Facility
 from dream_core.accounts.accounts_utils import RoleType
+from dream_core.testing.factories.facilities import FacilityFactory, FacilityMembershipFactory
+
+
+# ── Facilities fixtures ────────────────────────────────────────────────────────
+
+@pytest.fixture
+def default_facility(db: None) -> Facility:
+    """Provides a default facility for all test users."""
+    return FacilityFactory(name="Default Test Facility", code="DFT01")
+
 
 # ── Roles fixture (creates the core system roles once per session) ─────────────
 
@@ -41,7 +52,7 @@ def superadmin_user(db: None, roles: dict[str, Role]) -> User:
 
 
 @pytest.fixture
-def admin_user(db: None, roles: dict[str, Role]) -> User:
+def admin_user(db: None, roles: dict[str, Role], default_facility: Facility) -> User:
     user = User.objects.create_user(
         email="admin@dream_core.test",
         password="Adm1nP4ss!",
@@ -50,11 +61,12 @@ def admin_user(db: None, roles: dict[str, Role]) -> User:
         must_change_password=False,
     )
     user.roles.add(roles[RoleType.ADMIN])
+    FacilityMembershipFactory(user=user, facility=default_facility, is_primary=True)
     return user
 
 
 @pytest.fixture
-def lab_manager_user(db: None, roles: dict[str, Role]) -> User:
+def lab_manager_user(db: None, roles: dict[str, Role], default_facility: Facility) -> User:
     user = User.objects.create_user(
         email="lab.manager@dream_core.test",
         password="L4bM4n4g3r!",
@@ -63,11 +75,12 @@ def lab_manager_user(db: None, roles: dict[str, Role]) -> User:
         must_change_password=False,
     )
     user.roles.add(roles[RoleType.LAB_MANAGER])
+    FacilityMembershipFactory(user=user, facility=default_facility, is_primary=True)
     return user
 
 
 @pytest.fixture
-def lab_analyst_user(db: None, roles: dict[str, Role]) -> User:
+def lab_analyst_user(db: None, roles: dict[str, Role], default_facility: Facility) -> User:
     user = User.objects.create_user(
         email="analyst@dream_core.test",
         password="An4lyst!Pass",
@@ -76,11 +89,12 @@ def lab_analyst_user(db: None, roles: dict[str, Role]) -> User:
         must_change_password=False,
     )
     user.roles.add(roles[RoleType.LAB_ANALYST])
+    FacilityMembershipFactory(user=user, facility=default_facility, is_primary=True)
     return user
 
 
 @pytest.fixture
-def clinician_user(db: None, roles: dict[str, Role]) -> User:
+def clinician_user(db: None, roles: dict[str, Role], default_facility: Facility) -> User:
     user = User.objects.create_user(
         email="doctor@dream_core.test",
         password="D0ct0rP4ss!",
@@ -89,11 +103,12 @@ def clinician_user(db: None, roles: dict[str, Role]) -> User:
         must_change_password=False,
     )
     user.roles.add(roles[RoleType.CLINICIAN])
+    FacilityMembershipFactory(user=user, facility=default_facility, is_primary=True)
     return user
 
 
 @pytest.fixture
-def auditor_user(db: None, roles: dict[str, Role]) -> User:
+def auditor_user(db: None, roles: dict[str, Role], default_facility: Facility) -> User:
     user = User.objects.create_user(
         email="auditor@dream_core.test",
         password="Aud1t0rP4ss!",
@@ -102,11 +117,12 @@ def auditor_user(db: None, roles: dict[str, Role]) -> User:
         must_change_password=False,
     )
     user.roles.add(roles[RoleType.AUDITOR])
+    FacilityMembershipFactory(user=user, facility=default_facility, is_primary=True)
     return user
 
 
 @pytest.fixture
-def receptionist_user(db: None, roles: dict[str, Role]) -> User:
+def receptionist_user(db: None, roles: dict[str, Role], default_facility: Facility) -> User:
     user = User.objects.create_user(
         email="receptionist@dream_core.test",
         password="Rec3pt10n!ssP4ss!",
@@ -115,6 +131,7 @@ def receptionist_user(db: None, roles: dict[str, Role]) -> User:
         must_change_password=False,
     )
     user.roles.add(roles[RoleType.RECEPTIONIST])
+    FacilityMembershipFactory(user=user, facility=default_facility, is_primary=True)
     return user
 
 

@@ -53,7 +53,12 @@ MIDDLEWARE: list[str] = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "auditlog.middleware.AuditlogMiddleware",       # AUDIT: captures request user
+    
+    # AUDIT: captures request user
+    "auditlog.middleware.AuditlogMiddleware",
+    # Must be after AuditlogMiddleware so context is already initilized to inject facility_id
+    "dream_core.audit.middlewares.facilities.FacilityAuditMiddleware",
+
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -160,7 +165,7 @@ AUDITLOG_INCLUDE_ALL_MODELS: bool = False   # We register explicitly per model
 #          new records are always assigned to a facility.
 # Flip this flag (per environment) to activate enforcement without any code
 # changes in views or serializers.
-FACILITY_ENFORCEMENT_ENABLED: bool = False
+FACILITY_ENFORCEMENT_ENABLED: bool = True
 
 # ── drf-spectacular (OpenAPI) ─────────────────────────────────────────────────
 SPECTACULAR_SETTINGS: dict[str, object] = {
@@ -175,6 +180,7 @@ SPECTACULAR_SETTINGS: dict[str, object] = {
         {"name": "patients", "description": "Patient registry (FHIR R4)"},
         {"name": "catalog", "description": "Test catalog"},
         {"name": "audit", "description": "Audit log"},
+        {"name": "facilities", "description": "Facility management & membership"},
     ],
 }
 

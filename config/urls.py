@@ -17,11 +17,12 @@ from django.urls import path, include
 from dream_core.health_check.views import health_check_view
 
 api_v1_patterns = [
-    path('auth/',     include('dream_core.accounts.urls.auth')),
-    path('accounts/', include('dream_core.accounts.urls.accounts')),
-    path('audit/',    include('dream_core.audit.urls')),
-    path('catalog/',  include('dream_core.catalog.urls')),
-    path('patients/', include('dream_core.patients.urls')),
+    path('auth/',       include('dream_core.accounts.urls.auth')),
+    path('accounts/',   include('dream_core.accounts.urls.accounts')),
+    path('audit/',      include('dream_core.audit.urls')),
+    path('catalog/',    include('dream_core.catalog.urls')),
+    path('facilities/', include('dream_core.facilities.urls')),
+    path('patients/',   include('dream_core.patients.urls')),
 ]
 
 urlpatterns = [

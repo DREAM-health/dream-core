@@ -15,6 +15,7 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from dream_core.facilities.models import Facility
 from dream_core.patients.fhir_utils import _SYSTEM_INTERNAL_UUID
 from dream_core.patients.models import DataConsent, Patient, PatientIdentifier
 from dream_core.testing.factories.patients import (
@@ -23,7 +24,7 @@ from dream_core.testing.factories.patients import (
     PatientFactory,
     PatientIdentifierFactory,
 )
-
+from dream_core.testing.fixtures.conftest import default_facility
 
 pytestmark = pytest.mark.django_db
 
@@ -45,92 +46,6 @@ def consents_url(patient_id: object) -> str:
 def revoke_url(consent_id: object) -> str:
     return f"/api/core/v1/patients/consents/{consent_id}/revoke/"
  
-
-# ── List ──────────────────────────────────────────────────────────────────────
-
-class TestPatientList:
-    def test_authenticated_clinical_user_can_list(self, clinician_client: APIClient) -> None:
-        PatientFactory.create_batch(3)
-        resp = clinician_client.get(LIST_URL)
-        assert resp.status_code == status.HTTP_200_OK
-        assert resp.json()["count"] >= 3
-
-    def test_lab_analyst_can_list(self, lab_analyst_client: APIClient) -> None:
-        resp = lab_analyst_client.get(LIST_URL)
-        assert resp.status_code == status.HTTP_200_OK
-
-    def test_unauthenticated_cannot_list(self, anon_client: APIClient) -> None:
-        resp = anon_client.get(LIST_URL)
-        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
-
-    def test_soft_deleted_patients_not_in_list(self, clinician_client: APIClient) -> None:
-        active = PatientFactory()
-        deleted = PatientFactory()
-        deleted.delete(reason="Test deletion")
-
-        resp = clinician_client.get(LIST_URL)
-        ids = [p["id"] for p in resp.json()["results"]]
-
-        assert str(active.id) in ids
-        assert str(deleted.id) not in ids
-
-    def test_list_includes_id_patient_and_id_dream(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(id_patient="PAT-LIST-001", id_dream="DRM-LIST-001")
-        resp = clinician_client.get(LIST_URL)
-        results = {p["id"]: p for p in resp.json()["results"]}
-        assert results[str(patient.id)]["id_patient"] == "PAT-LIST-001"
-        assert results[str(patient.id)]["id_dream"] == "DRM-LIST-001"
-
-    def test_search_by_family_name(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(family_name="Zzuniquename")
-        PatientFactory.create_batch(5)
-
-        resp = clinician_client.get(LIST_URL, {"search": "Zzuniquename"})
-        assert resp.status_code == status.HTTP_200_OK
-        ids = [p["id"] for p in resp.json()["results"]]
-        assert str(patient.id) in ids
-
-    def test_search_by_id_patient(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(id_patient="PAT-SEARCH-XYZ")
-        resp = clinician_client.get(LIST_URL, {"search": "PAT-SEARCH-XYZ"})
-        ids = [p["id"] for p in resp.json()["results"]]
-        assert str(patient.id) in ids
- 
-    def test_search_by_id_dream(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(id_dream="DRM-SEARCH-XYZ")
-        resp = clinician_client.get(LIST_URL, {"search": "DRM-SEARCH-XYZ"})
-        ids = [p["id"] for p in resp.json()["results"]]
-        assert str(patient.id) in ids
-
-    def test_search_by_identifier_value(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
-        PatientIdentifierFactory(patient=patient, value="99999999999")
-
-        resp = clinician_client.get(LIST_URL, {"search": "99999999999"})
-        ids = [p["id"] for p in resp.json()["results"]]
-        assert str(patient.id) in ids
-
-    def test_filter_by_gender(self, clinician_client: APIClient) -> None:
-        PatientFactory(gender="male")
-        PatientFactory(gender="female")
-
-        resp = clinician_client.get(LIST_URL, {"gender": "male"})
-        results = resp.json()["results"]
-        assert all(p["gender"] == "male" for p in results)
- 
-    def test_filter_by_is_pregnant(self, clinician_client: APIClient) -> None:
-        pregnant = PatientFactory(gender="female", is_pregnant=True)
-        PatientFactory(gender="female", is_pregnant=False)
-        resp = clinician_client.get(LIST_URL, {"is_pregnant": True})
-        ids = [p["id"] for p in resp.json()["results"]]
-        assert str(pregnant.id) in ids
-
-    def test_filter_by_is_breastfeeding(self, clinician_client: APIClient) -> None:
-        breastfeeding = PatientFactory(gender="female", is_breastfeeding=True)
-        PatientFactory(gender="female", is_breastfeeding=False)
-        resp = clinician_client.get(LIST_URL, {"is_breastfeeding": True})
-        ids = [p["id"] for p in resp.json()["results"]]
-        assert str(breastfeeding.id) in ids
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
@@ -248,16 +163,112 @@ class TestPatientCreate:
         uuid.UUID(resp.json()["id"])  # raises ValueError if not valid UUID
 
 
+# ── List ──────────────────────────────────────────────────────────────────────
+
+class TestPatientList:
+    def test_authenticated_clinical_user_can_list(self, clinician_client: APIClient) -> None:
+        resp = clinician_client.get(LIST_URL)
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_authenticated_clinical_user_has_patients(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        PatientFactory(facility=default_facility)
+        resp = clinician_client.get(LIST_URL)
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.json()["count"] == 1
+
+    def test_lab_analyst_can_list(self, lab_analyst_client: APIClient) -> None:
+        resp = lab_analyst_client.get(LIST_URL)
+        assert resp.status_code == status.HTTP_200_OK
+
+    def test_unauthenticated_cannot_list(self, anon_client: APIClient) -> None:
+        resp = anon_client.get(LIST_URL)
+        assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_soft_deleted_patients_not_in_list(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        active = PatientFactory(facility=default_facility)
+        deleted = PatientFactory(facility=default_facility)
+
+        resp = clinician_client.get(LIST_URL).json()
+        ids = [p["id"] for p in resp["results"]]
+        assert str(active.id) in ids
+        assert str(deleted.id) in ids
+
+        deleted.delete(reason="Test deletion")
+
+        resp = clinician_client.get(LIST_URL)
+        ids = [p["id"] for p in resp.json()["results"]]
+        assert str(active.id) in ids
+        assert str(deleted.id) not in ids
+
+    def test_list_includes_id_patient_and_id_dream(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(id_patient="PAT-LIST-001", id_dream="DRM-LIST-001", facility=default_facility)
+        resp = clinician_client.get(LIST_URL)
+        results = {p["id"]: p for p in resp.json()["results"]}
+        assert results[str(patient.id)]["id_patient"] == "PAT-LIST-001"
+        assert results[str(patient.id)]["id_dream"] == "DRM-LIST-001"
+
+    def test_search_by_family_name(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(family_name="Zzuniquename", facility=default_facility)
+        PatientFactory.create_batch(5, facility=default_facility)
+        resp = clinician_client.get(LIST_URL, {"search": "Zzuniquename"})
+        assert resp.status_code == status.HTTP_200_OK
+        ids = [p["id"] for p in resp.json()["results"]]
+        assert str(patient.id) in ids
+
+    def test_search_by_id_patient(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(id_patient="PAT-SEARCH-XYZ", facility=default_facility)
+        resp = clinician_client.get(LIST_URL, {"search": "PAT-SEARCH-XYZ"})
+        ids = [p["id"] for p in resp.json()["results"]]
+        assert str(patient.id) in ids
+ 
+    def test_search_by_id_dream(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(id_dream="DRM-SEARCH-XYZ", facility=default_facility)
+        resp = clinician_client.get(LIST_URL, {"search": "DRM-SEARCH-XYZ"})
+        ids = [p["id"] for p in resp.json()["results"]]
+        assert str(patient.id) in ids
+
+    def test_search_by_identifier_value(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
+        PatientIdentifierFactory(patient=patient, value="99999999999")
+
+        resp = clinician_client.get(LIST_URL, {"search": "99999999999"})
+        ids = [p["id"] for p in resp.json()["results"]]
+        assert str(patient.id) in ids
+
+    def test_filter_by_gender(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        PatientFactory(gender="male", facility=default_facility)
+        PatientFactory(gender="female", facility=default_facility)
+
+        resp = clinician_client.get(LIST_URL, {"gender": "male"})
+        results = resp.json()["results"]
+        assert all(p["gender"] == "male" for p in results)
+ 
+    def test_filter_by_is_pregnant(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        pregnant = PatientFactory(gender="female", is_pregnant=True, facility=default_facility)
+        not_pregnant = PatientFactory(gender="female", is_pregnant=False, facility=default_facility)
+        resp = clinician_client.get(LIST_URL, {"is_pregnant": True})
+        ids = [p["id"] for p in resp.json()["results"]]
+        assert str(pregnant.id) in ids
+        assert str(not_pregnant.id) not in ids
+
+    def test_filter_by_is_breastfeeding(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        breastfeeding = PatientFactory(gender="female", is_breastfeeding=True, facility=default_facility)
+        not_breastfeeding = PatientFactory(gender="female", is_breastfeeding=False, facility=default_facility)
+        resp = clinician_client.get(LIST_URL, {"is_breastfeeding": True})
+        ids = [p["id"] for p in resp.json()["results"]]
+        assert str(breastfeeding.id) in ids
+        assert str(not_breastfeeding.id) not in ids
+
 # ── Retrieve ──────────────────────────────────────────────────────────────────
 
 class TestPatientRetrieve:
-    def test_clinician_can_retrieve_patient(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_clinician_can_retrieve_patient(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         resp = clinician_client.get(detail_url(patient.id))
         assert resp.status_code == status.HTTP_200_OK
         assert resp.json()["id"] == str(patient.id)
 
-    def test_detail_includes_new_fields(self, clinician_client: APIClient) -> None:
+    def test_detail_includes_new_fields(self, clinician_client: APIClient, default_facility: Facility) -> None:
         patient = PatientFactory(
             id_patient="PAT-DET-001",
             id_dream="DRM-DET-001",
@@ -266,6 +277,7 @@ class TestPatientRetrieve:
             gender="female",
             is_pregnant=True,
             is_breastfeeding=False,
+            facility=default_facility,
         )
         resp = clinician_client.get(detail_url(patient.id))
         data = resp.json()
@@ -277,9 +289,10 @@ class TestPatientRetrieve:
         assert data["is_breastfeeding"] is False
 
     def test_retrieve_includes_identifiers_and_contacts(
-        self, clinician_client: APIClient
+        self, clinician_client: APIClient,
+        default_facility: Facility
     ) -> None:
-        patient = PatientFactory()
+        patient = PatientFactory(facility=default_facility)
         PatientIdentifierFactory(patient=patient, value="55566677788")
         PatientContactFactory(patient=patient)
 
@@ -305,8 +318,8 @@ class TestPatientRetrieve:
 # ── Update ────────────────────────────────────────────────────────────────────
 
 class TestPatientUpdate:
-    def test_patch_updates_field(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_patch_updates_field(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         resp = clinician_client.patch(
             detail_url(patient.id),
             {"family_name": "UpdatedName"},
@@ -316,27 +329,27 @@ class TestPatientUpdate:
         patient.refresh_from_db()
         assert patient.family_name == "UpdatedName"
  
-    def test_patch_updates_id_patient(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(id_patient="PAT-UPD-001")
+    def test_patch_updates_id_patient(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(id_patient="PAT-UPD-001", facility=default_facility)
         resp = clinician_client.patch(detail_url(patient.id), {"id_patient": "PAT-UPD-002"}, format="json")
         assert resp.status_code == status.HTTP_200_OK
         patient.refresh_from_db()
         assert patient.id_patient == "PAT-UPD-002"
  
-    def test_patch_sets_obstetric_on_female(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(gender="female", is_pregnant=None)
+    def test_patch_sets_obstetric_on_female(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(gender="female", is_pregnant=None, facility=default_facility)
         resp = clinician_client.patch(detail_url(patient.id), {"is_pregnant": True}, format="json")
         assert resp.status_code == status.HTTP_200_OK
         patient.refresh_from_db()
         assert patient.is_pregnant is True
  
-    def test_patch_pregnant_rejected_for_male(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(gender="male")
+    def test_patch_pregnant_rejected_for_male(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(gender="male", facility=default_facility)
         resp = clinician_client.patch(detail_url(patient.id), {"is_pregnant": True}, format="json")
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_put_full_update(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_put_full_update(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         payload = {
             "family_name": "Pereira",
             "given_names": "Maria",
@@ -370,20 +383,20 @@ class TestPatientUpdate:
 # ── Soft-delete ───────────────────────────────────────────────────────────────
 
 class TestPatientSoftDelete:
-    def test_delete_requires_reason(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_delete_requires_reason(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         resp = clinician_client.delete(detail_url(patient.id), {}, format="json")
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_delete_with_short_reason_rejected(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_delete_with_short_reason_rejected(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         resp = clinician_client.delete(
             detail_url(patient.id), {"reason": "short"}, format="json"
         )
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
-    def test_soft_delete_with_valid_reason(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_soft_delete_with_valid_reason(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         resp = clinician_client.delete(
             detail_url(patient.id),
             {"reason": "Patient requested record deactivation."},
@@ -400,8 +413,8 @@ class TestPatientSoftDelete:
         assert patient.deleted_at is not None
         assert patient.deletion_reason == "Patient requested record deactivation."
 
-    def test_delete_sets_deletion_timestamp(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_delete_sets_deletion_timestamp(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         clinician_client.delete(
             detail_url(patient.id),
             {"reason": "Compliance test deletion reason"},
@@ -410,8 +423,8 @@ class TestPatientSoftDelete:
         patient.refresh_from_db()
         assert patient.deleted_at is not None
 
-    def test_lab_analyst_cannot_delete_patient(self, lab_analyst_client: APIClient) -> None:
-        patient = PatientFactory()
+    def test_lab_analyst_cannot_delete_patient(self, lab_analyst_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(facility=default_facility)
         resp = lab_analyst_client.delete(
             detail_url(patient.id),
             {"reason": "Analyst should not be able to do this"},
@@ -539,15 +552,15 @@ class TestFHIRPatient:
         patient = Patient.objects.get(pk=resp.json()["id"])
         assert patient.id_patient == "PAT-FHIR-001"
  
-    def test_fhir_response_includes_id_patient_identifier(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(id_patient="PAT-FHIR-OUT", id_dream="DRM-FHIR-OUT")
+    def test_fhir_response_includes_id_patient_identifier(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(id_patient="PAT-FHIR-OUT", id_dream="DRM-FHIR-OUT", facility=default_facility)
         resp = clinician_client.get(fhir_detail_url(patient.id))
         systems = [i["system"] for i in resp.json()["identifier"]]
         assert "https://dream-core.local/id-patient" in systems
         assert "https://dream-core.local/id-dream" in systems
  
-    def test_retrieve_patient_as_fhir(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(family_name="Gomes", given_names="Ana Paula")
+    def test_retrieve_patient_as_fhir(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(family_name="Gomes", given_names="Ana Paula", facility=default_facility)
         resp = clinician_client.get(fhir_detail_url(patient.id))
         assert resp.status_code == status.HTTP_200_OK
         data = resp.json()
@@ -556,16 +569,16 @@ class TestFHIRPatient:
         assert "Ana" in data["name"][0]["given"]
 
     def test_fhir_response_includes_dream_core_identifier(
-        self, clinician_client: APIClient
+        self, clinician_client: APIClient, default_facility: Facility
     ) -> None:
-        patient = PatientFactory()
+        patient = PatientFactory(facility=default_facility)
         resp = clinician_client.get(fhir_detail_url(patient.id))
         identifiers = resp.json()["identifier"]
         systems = [i["system"] for i in identifiers]
         assert _SYSTEM_INTERNAL_UUID in systems
 
-    def test_update_patient_via_fhir_put(self, clinician_client: APIClient) -> None:
-        patient = PatientFactory(family_name="OldName")
+    def test_update_patient_via_fhir_put(self, clinician_client: APIClient, default_facility: Facility) -> None:
+        patient = PatientFactory(family_name="OldName", facility=default_facility)
         payload = self._fhir_payload()
         payload["name"][0]["family"] = "UpdatedFHIR"
 
@@ -584,9 +597,10 @@ class TestFHIRPatient:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_lab_analyst_can_read_fhir(
-        self, lab_analyst_client: APIClient
+        self, lab_analyst_client: APIClient,
+        default_facility: Facility
     ) -> None:
-        patient = PatientFactory()
+        patient = PatientFactory(facility=default_facility)
         resp = lab_analyst_client.get(fhir_detail_url(patient.id))
         assert resp.status_code == status.HTTP_200_OK
 
