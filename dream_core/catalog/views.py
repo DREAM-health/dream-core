@@ -125,9 +125,7 @@ class LabTestPanelListCreateView(generics.ListCreateAPIView[LabTestPanel]):
         return LabTestPanelListSerializer
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        print(request.data)
         serializer = LabTestPanelWriteSerializer(data=request.data, context={"request": request})
-        print(serializer)
         serializer.is_valid(raise_exception=True)
         panel: LabTestPanel = serializer.save()
         output = LabTestPanelDetailSerializer(
