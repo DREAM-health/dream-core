@@ -1,5 +1,5 @@
 """Development settings — never use in production."""
-from .base import *  # noqa: F401, F403
+from .base import BASE_DIR, LOGGING as BASE_LOGGING
 
 DEBUG = True
 
@@ -9,7 +9,7 @@ ALLOWED_HOSTS = ["*"]
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "dream_core_dev.sqlite3", # type: ignore[name-defined]  # noqa: F405
+        "NAME": BASE_DIR / "dream_core_dev.sqlite3",
     }
 }
 
@@ -21,13 +21,14 @@ PASSWORD_HASHERS = [
 ]
 
 LOGGING: dict = {
-    "version": 1,
-    "disable_existing_loggers": False,
+    **BASE_LOGGING,
     "handlers": {
+        **BASE_LOGGING.get("handlers", {}),
         "console": {"class": "logging.StreamHandler"},
     },
     "root": {"handlers": ["console"], "level": "DEBUG"},
     "loggers": {
+        **BASE_LOGGING.get("loggers", {}),
         "django.db.backends": {"level": "INFO"},  # set DEBUG to see SQL
     },
 }
