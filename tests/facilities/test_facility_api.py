@@ -10,7 +10,7 @@ import pytest
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from dream_core.facilities.models import Facility, FacilityMembership
+from dream_core.facilities.models import FacilityMembership
 from dream_core.testing.factories.facilities import FacilityFactory, FacilityMembershipFactory
 from dream_core.testing.factories.accounts import UserFactory
 from dream_core.testing.factories.patients import PatientFactory
@@ -69,14 +69,22 @@ class TestFacilityCRUD:
     def test_admin_sees_only_own_facilities(
         self, admin_client: APIClient, admin_user: object
     ) -> None:
+        from guardian.shortcuts import assign_perm
+
         own = FacilityFactory(code="OWN01")
+        FacilityMembershipFactory(user=admin_user, facility=own) # via membership
+
         other = FacilityFactory(code="OTH01")
-        FacilityMembershipFactory(user=admin_user, facility=own)
+        assign_perm("access_facility", admin_user, other) # via guardian grant
+
+        FacilityFactory(code="ANOTH01") # no access
 
         resp = admin_client.get(FACILITIES_URL)
         codes = [f["code"] for f in resp.json()["results"]]
+        assert "DFT01" in codes # default facility, used on admin_user fixture, should always be visible
         assert "OWN01" in codes
-        assert "OTH01" not in codes
+        assert "OTH01" in codes
+        assert "ANOTH01" not in codes
 
     def test_superadmin_can_soft_delete_facility(self, superadmin_client: APIClient) -> None:
         f = FacilityFactory()

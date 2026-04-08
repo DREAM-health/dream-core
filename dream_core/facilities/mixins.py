@@ -54,7 +54,6 @@ def enforcement_active() -> bool:
     """Return True if facility-scoped isolation is enabled."""
     return bool(getattr(settings, "FACILITY_ENFORCEMENT_ENABLED", False))
 
-
 def get_user_facility_ids(request: Request) -> list[str]:
     """
     Return facility IDs from direct FacilityMembership rows.
@@ -73,8 +72,6 @@ def get_user_facility_ids(request: Request) -> list[str]:
     )
     setattr(request, cache_attr, ids)
     return ids
-
-
 
 def get_guardian_facility_ids(request: Request) -> list[str]:
     """
@@ -106,7 +103,6 @@ def get_guardian_facility_ids(request: Request) -> list[str]:
  
     setattr(request, cache_attr, ids)
     return ids
- 
  
 def get_all_permitted_facility_ids(request: Request) -> list[str]:
     """Union of membership IDs and guardian-granted IDs."""

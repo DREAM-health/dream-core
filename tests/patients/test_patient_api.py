@@ -171,7 +171,7 @@ class TestPatientList:
         assert resp.status_code == status.HTTP_200_OK
 
     def test_authenticated_clinical_user_has_patients(self, clinician_client: APIClient, default_facility: Facility) -> None:
-        u = PatientFactory(facility=default_facility)
+        PatientFactory(facility=default_facility)
         resp = clinician_client.get(LIST_URL)
         assert resp.status_code == status.HTTP_200_OK
         assert resp.json()["count"] == 1
