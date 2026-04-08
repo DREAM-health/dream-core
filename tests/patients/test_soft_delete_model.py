@@ -2,11 +2,15 @@
 tests/patients/test_soft_delete_model.py
 
 Unit tests for the SoftDeleteModel base class behaviour.
-These tests verify the core compliance property:
-  - delete() is always a soft-delete
-  - Records are never physically removed
+These tests verify the core compliance property for normal operations:
+  - delete() performs a soft-delete by default
+  - Records are not physically removed via the default delete()/manager paths
   - Managers correctly segregate deleted vs active records
   - restore() reverses a soft-delete
+
+The suite also includes tests for an explicit hard-delete operation
+(e.g. test_hard_delete_physically_removes_record), which is only
+intended to be used under specific, authorized conditions.
 """
 import pytest
 from django.utils import timezone
