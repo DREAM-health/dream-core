@@ -90,15 +90,16 @@ cp .env.example .env
 # Edit .env with your local values
 ```
 
-### 2. Run with Docker (recommended)
 
+### 2. (NOT READY YET) Run with Docker 
 ```bash
 docker compose up -d
 ```
 
+
 API will be available at: `http://localhost:8000`
 
-### 3. Run without Docker (SQLite dev mode)
+### 3. (RECOMMENDED) Run without Docker (SQLite dev mode)
 
 ```bash
 export DJANGO_SETTINGS_MODULE=config.settings.development
@@ -115,6 +116,9 @@ python manage.py runserver
 ## Running Tests
 
 ```bash
+# Creates and migrates an isolated database only for test purposes
+python manage.py migrate --settings config.settings.testing
+
 # Full test suite with coverage
 pytest
 
